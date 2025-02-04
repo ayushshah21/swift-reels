@@ -29,8 +29,8 @@ struct VideoCardView: View {
                         
                         Spacer()
                         
-                        // Difficulty pill
-                        Text(video.difficulty.rawValue)
+                        // Level pill (renamed from Difficulty)
+                        Text(video.workout.level.rawValue)
                             .font(.caption)
                             .fontWeight(.semibold)
                             .padding(.horizontal, 12)

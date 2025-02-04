@@ -111,16 +111,16 @@ struct ReelPlayerView: View {
                             .font(.subheadline)
                             .foregroundColor(.white.opacity(0.8))
                         HStack {
-                            Label(video.difficulty.rawValue, systemImage: "flame.fill")
+                            Label(video.workout.level.rawValue, systemImage: "flame.fill")
                                 .foregroundColor(.orange)
-                            Label(video.category.rawValue, systemImage: "figure.run")
+                            Label(video.workout.type.rawValue, systemImage: "figure.run")
                                 .foregroundColor(.blue)
                         }
                         .font(.caption)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     
-                    // Action Buttons
+                    // Action Buttons - Moved higher with offset
                     VStack(spacing: 20) {
                         Button(action: {
                             // Like action
@@ -163,6 +163,7 @@ struct ReelPlayerView: View {
                         }
                         .foregroundColor(isBookmarked ? Theme.primary : .white)
                     }
+                    .offset(y: -30) // Move buttons up
                 }
                 .padding(.horizontal)
                 .padding(.bottom, 100) // Add extra padding for tab bar
