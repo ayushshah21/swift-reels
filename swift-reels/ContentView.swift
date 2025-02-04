@@ -10,6 +10,7 @@ import SwiftUI
 struct ContentView: View {
     @State private var selectedTab = 0
     @State private var videos: [VideoModel] = VideoModel.mockVideos
+    @StateObject private var firebaseManager = FirebaseManager.shared
     
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -35,6 +36,9 @@ struct ContentView: View {
                 .tag(2)
         }
         .preferredColorScheme(.dark)
+        .onAppear {
+            firebaseManager.testConnection()
+        }
     }
 }
 

@@ -6,9 +6,15 @@
 //
 
 import SwiftUI
+import FirebaseCore
 
 @main
 struct swift_reelsApp: App {
+    init() {
+        FirebaseApp.configure()
+        print("🔥 Firebase configured!")
+    }
+    
     var body: some Scene {
         WindowGroup {
             ContentView()

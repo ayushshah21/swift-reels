@@ -6,6 +6,18 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		9E1755F27A51623B4CA0EC3A /* Pods_swift_reelsTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4E42AD114CD1D0AC82D8575A /* Pods_swift_reelsTests.framework */; };
+		C88258652D526D5500883F12 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = C88258642D526D5500883F12 /* FirebaseAnalytics */; };
+		C88258672D526D5500883F12 /* FirebaseAnalyticsWithoutAdIdSupport in Frameworks */ = {isa = PBXBuildFile; productRef = C88258662D526D5500883F12 /* FirebaseAnalyticsWithoutAdIdSupport */; };
+		C88258692D526D5500883F12 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = C88258682D526D5500883F12 /* FirebaseAuth */; };
+		C8E09C512D5268230038BA5B /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = C8E09C502D5268230038BA5B /* FirebaseAnalytics */; };
+		C8E09C532D5268230038BA5B /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = C8E09C522D5268230038BA5B /* FirebaseAuth */; };
+		C8E09C552D5268230038BA5B /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = C8E09C542D5268230038BA5B /* FirebaseFirestore */; };
+		C8E09C572D5268230038BA5B /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = C8E09C562D5268230038BA5B /* FirebaseStorage */; };
+		FB61EAFA8EE42C9E37B53751 /* Pods_swift_reels_swift_reelsUITests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8BC6293BF6D12263DA2D3896 /* Pods_swift_reels_swift_reelsUITests.framework */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		C89BB0E62D51C006002CB01B /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -24,6 +36,9 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		4E42AD114CD1D0AC82D8575A /* Pods_swift_reelsTests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_swift_reelsTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		8BC6293BF6D12263DA2D3896 /* Pods_swift_reels_swift_reelsUITests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_swift_reels_swift_reelsUITests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		C72F84D2B1655477983D6FBB /* Pods_swift_reels.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_swift_reels.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		C89BB0D42D51C004002CB01B /* swift-reels.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "swift-reels.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		C89BB0E52D51C006002CB01B /* swift-reelsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "swift-reelsTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		C89BB0EF2D51C006002CB01B /* swift-reelsUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "swift-reelsUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -52,6 +67,13 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C8E09C512D5268230038BA5B /* FirebaseAnalytics in Frameworks */,
+				C8E09C552D5268230038BA5B /* FirebaseFirestore in Frameworks */,
+				C88258652D526D5500883F12 /* FirebaseAnalytics in Frameworks */,
+				C8E09C532D5268230038BA5B /* FirebaseAuth in Frameworks */,
+				C88258672D526D5500883F12 /* FirebaseAnalyticsWithoutAdIdSupport in Frameworks */,
+				C8E09C572D5268230038BA5B /* FirebaseStorage in Frameworks */,
+				C88258692D526D5500883F12 /* FirebaseAuth in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -59,6 +81,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9E1755F27A51623B4CA0EC3A /* Pods_swift_reelsTests.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -66,12 +89,23 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FB61EAFA8EE42C9E37B53751 /* Pods_swift_reels_swift_reelsUITests.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		5BA304CA1E856BDF6D3542F3 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				C72F84D2B1655477983D6FBB /* Pods_swift_reels.framework */,
+				8BC6293BF6D12263DA2D3896 /* Pods_swift_reels_swift_reelsUITests.framework */,
+				4E42AD114CD1D0AC82D8575A /* Pods_swift_reelsTests.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		C89BB0CB2D51C004002CB01B = {
 			isa = PBXGroup;
 			children = (
@@ -79,6 +113,7 @@
 				C89BB0E82D51C006002CB01B /* swift-reelsTests */,
 				C89BB0F22D51C006002CB01B /* swift-reelsUITests */,
 				C89BB0D52D51C004002CB01B /* Products */,
+				5BA304CA1E856BDF6D3542F3 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -111,8 +146,6 @@
 				C89BB0D62D51C004002CB01B /* swift-reels */,
 			);
 			name = "swift-reels";
-			packageProductDependencies = (
-			);
 			productName = "swift-reels";
 			productReference = C89BB0D42D51C004002CB01B /* swift-reels.app */;
 			productType = "com.apple.product-type.application";
@@ -121,6 +154,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = C89BB0FC2D51C006002CB01B /* Build configuration list for PBXNativeTarget "swift-reelsTests" */;
 			buildPhases = (
+				B5AF12D995EE5BD61CADA854 /* [CP] Check Pods Manifest.lock */,
 				C89BB0E12D51C006002CB01B /* Sources */,
 				C89BB0E22D51C006002CB01B /* Frameworks */,
 				C89BB0E32D51C006002CB01B /* Resources */,
@@ -134,8 +168,6 @@
 				C89BB0E82D51C006002CB01B /* swift-reelsTests */,
 			);
 			name = "swift-reelsTests";
-			packageProductDependencies = (
-			);
 			productName = "swift-reelsTests";
 			productReference = C89BB0E52D51C006002CB01B /* swift-reelsTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -144,9 +176,11 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = C89BB0FF2D51C006002CB01B /* Build configuration list for PBXNativeTarget "swift-reelsUITests" */;
 			buildPhases = (
+				285C4A51AF09BEA4049E7242 /* [CP] Check Pods Manifest.lock */,
 				C89BB0EB2D51C006002CB01B /* Sources */,
 				C89BB0EC2D51C006002CB01B /* Frameworks */,
 				C89BB0ED2D51C006002CB01B /* Resources */,
+				FBC2FFC55E65A2515CF570EE /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -157,8 +191,6 @@
 				C89BB0F22D51C006002CB01B /* swift-reelsUITests */,
 			);
 			name = "swift-reelsUITests";
-			packageProductDependencies = (
-			);
 			productName = "swift-reelsUITests";
 			productReference = C89BB0EF2D51C006002CB01B /* swift-reelsUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
@@ -195,6 +227,9 @@
 			);
 			mainGroup = C89BB0CB2D51C004002CB01B;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				C88258632D526D5500883F12 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = C89BB0D52D51C004002CB01B /* Products */;
 			projectDirPath = "";
@@ -230,6 +265,70 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		285C4A51AF09BEA4049E7242 /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-swift-reels-swift-reelsUITests-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
+		B5AF12D995EE5BD61CADA854 /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-swift-reelsTests-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
+		FBC2FFC55E65A2515CF570EE /* [CP] Embed Pods Frameworks */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-swift-reels-swift-reelsUITests/Pods-swift-reels-swift-reelsUITests-frameworks-${CONFIGURATION}-input-files.xcfilelist",
+			);
+			name = "[CP] Embed Pods Frameworks";
+			outputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-swift-reels-swift-reelsUITests/Pods-swift-reels-swift-reelsUITests-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-swift-reels-swift-reelsUITests/Pods-swift-reels-swift-reelsUITests-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		C89BB0D02D51C004002CB01B /* Sources */ = {
@@ -591,6 +690,63 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		C88258632D526D5500883F12 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 11.8.0;
+			};
+		};
+		C8E09C4F2D5268230038BA5B /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 11.8.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		C88258642D526D5500883F12 /* FirebaseAnalytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C88258632D526D5500883F12 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalytics;
+		};
+		C88258662D526D5500883F12 /* FirebaseAnalyticsWithoutAdIdSupport */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C88258632D526D5500883F12 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalyticsWithoutAdIdSupport;
+		};
+		C88258682D526D5500883F12 /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C88258632D526D5500883F12 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+		C8E09C502D5268230038BA5B /* FirebaseAnalytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C8E09C4F2D5268230038BA5B /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalytics;
+		};
+		C8E09C522D5268230038BA5B /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C8E09C4F2D5268230038BA5B /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+		C8E09C542D5268230038BA5B /* FirebaseFirestore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C8E09C4F2D5268230038BA5B /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFirestore;
+		};
+		C8E09C562D5268230038BA5B /* FirebaseStorage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C8E09C4F2D5268230038BA5B /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseStorage;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = C89BB0CC2D51C004002CB01B /* Project object */;
 }
