@@ -788,4 +788,41 @@ class FirestoreManager: ObservableObject {
         
         print("✅ Successfully deleted video: \(videoId)")
     }
+    
+    // MARK: - Video Search Operations
+    
+    /// Searches for videos based on title, trainer name, and workout type
+    func searchVideos(query searchText: String, workoutType: WorkoutType? = nil) async throws -> [VideoModel] {
+        print("🔍 Searching videos with query: \(searchText), type: \(workoutType?.rawValue ?? "all")")
+        
+        // Create a base query
+        let baseQuery: Query = db.collection("videos")
+        
+        // Add workout type filter if specified
+        let filteredQuery = workoutType != nil && workoutType != .all
+            ? baseQuery.whereField("workout.type", isEqualTo: workoutType!.rawValue)
+            : baseQuery
+        
+        // Get all matching documents
+        // Note: Firestore doesn't support case-insensitive search or partial text search
+        // So we'll fetch documents and filter them client-side
+        let snapshot = try await filteredQuery.getDocuments()
+        
+        // Filter results client-side (case-insensitive)
+        let searchTerms = searchText.lowercased().split(separator: " ")
+        let videos = snapshot.documents.compactMap { document -> VideoModel? in
+            guard let video = VideoModel.fromFirestore(document) else { return nil }
+            
+            // Check if all search terms are present in either title or trainer name
+            let titleAndTrainer = "\(video.title) \(video.trainer)".lowercased()
+            let matchesAllTerms = searchTerms.allSatisfy { term in
+                titleAndTrainer.contains(term)
+            }
+            
+            return matchesAllTerms ? video : nil
+        }
+        
+        print("✅ Found \(videos.count) matching videos")
+        return videos
+    }
 } 

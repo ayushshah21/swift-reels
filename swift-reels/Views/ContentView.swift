@@ -15,6 +15,11 @@ struct ContentView: View {
                         Label("Feed", systemImage: "play.square")
                     }
                     
+                    SearchView()
+                        .tabItem {
+                            Label("Search", systemImage: "magnifyingglass")
+                        }
+                    
                     ProfileView()
                         .tabItem {
                             Label("Profile", systemImage: "person")

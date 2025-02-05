@@ -3,6 +3,15 @@ import AVKit
 import AVFoundation
 import FirebaseAuth
 
+extension UIApplication {
+    var keyWindow: UIWindow? {
+        connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap { $0.windows }
+            .first { $0.isKeyWindow }
+    }
+}
+
 @MainActor
 class VideoPlayerManager: ObservableObject {
     static let shared = VideoPlayerManager()
@@ -121,6 +130,8 @@ class VideoPlayerManager: ObservableObject {
 
 struct ReelPlayerView: View {
     let video: VideoModel
+    let isFromSearch: Bool
+    let isFromSaved: Bool
     @Environment(\.dismiss) private var dismiss
     @StateObject private var playerManager = VideoPlayerManager.shared
     @StateObject private var firestoreManager = FirestoreManager.shared
@@ -139,8 +150,14 @@ struct ReelPlayerView: View {
     @State private var showDeleteOptions = false
     @GestureState private var isDetectingLongPress = false
     
-    init(video: VideoModel) {
+    private var safeAreaBottom: CGFloat {
+        UIApplication.shared.keyWindow?.safeAreaInsets.bottom ?? 0
+    }
+    
+    init(video: VideoModel, isFromSearch: Bool = false, isFromSaved: Bool = false) {
         self.video = video
+        self.isFromSearch = isFromSearch
+        self.isFromSaved = isFromSaved
         _isBookmarked = State(initialValue: video.isBookmarked)
         _likeCount = State(initialValue: video.likeCount)
         _commentCount = State(initialValue: video.comments)
@@ -254,7 +271,7 @@ struct ReelPlayerView: View {
                 Spacer()
                 
                 // Video Info
-                HStack(alignment: .bottom) {
+                HStack(alignment: .bottom, spacing: 16) {
                     VStack(alignment: .leading, spacing: 8) {
                         Text(video.title)
                             .font(.title3)
@@ -271,9 +288,10 @@ struct ReelPlayerView: View {
                         .font(.caption)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .offset(y: isFromSearch ? 30 : (isFromSaved ? 50 : 0))
                     
-                    // Action Buttons - Moved higher with offset
-                    VStack(spacing: 20) {
+                    // Action Buttons
+                    VStack(spacing: 16) {
                         Button(action: {
                             handleLikeAction()
                         }) {
@@ -313,10 +331,10 @@ struct ReelPlayerView: View {
                         }
                         .foregroundColor(isBookmarked ? Theme.primary : .white)
                     }
-                    .offset(y: -30) // Move buttons up
+                    .offset(y: isFromSearch ? 0 : (isFromSaved ? 20 : -30))
                 }
                 .padding(.horizontal)
-                .padding(.bottom, 100) // Add extra padding for tab bar
+                .padding(.bottom, isFromSearch ? safeAreaBottom + 20 : (isFromSaved ? safeAreaBottom + 50 : 100))
                 .background(
                     LinearGradient(
                         colors: [.clear, .black.opacity(0.8)],

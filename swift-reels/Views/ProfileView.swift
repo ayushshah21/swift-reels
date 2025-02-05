@@ -145,7 +145,7 @@ struct SavedVideosView: View {
                     ScrollView {
                         LazyVStack(spacing: 16) {
                             ForEach(Array(videos.enumerated()), id: \.element.id) { index, video in
-                                NavigationLink(destination: ReelPlayerView(video: video)) {
+                                NavigationLink(destination: ReelPlayerView(video: video, isFromSaved: true)) {
                                     VideoCardView(video: video)
                                         .padding(.horizontal)
                                 }
