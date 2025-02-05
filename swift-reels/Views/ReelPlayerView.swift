@@ -6,6 +6,7 @@ import AVFoundation
 class VideoPlayerManager: ObservableObject {
     static let shared = VideoPlayerManager()
     private var playerCache: [String: AVPlayer] = [:]
+    private var assetCache: [String: AVURLAsset] = [:]
     private var currentPlayingURL: String?
     
     func player(for url: URL) async -> AVPlayer {
@@ -21,13 +22,20 @@ class VideoPlayerManager: ObservableObject {
             return existingPlayer
         }
         
-        // Create asset with options for network optimization
-        let asset = AVURLAsset(
-            url: url,
-            options: [
-                AVURLAssetPreferPreciseDurationAndTimingKey: true
-            ]
-        )
+        // Use cached asset if available, otherwise create new one
+        let asset: AVURLAsset
+        if let cachedAsset = assetCache[urlString] {
+            asset = cachedAsset
+            print("✅ Using cached asset for: \(url.lastPathComponent)")
+        } else {
+            asset = AVURLAsset(
+                url: url,
+                options: [
+                    AVURLAssetPreferPreciseDurationAndTimingKey: true
+                ]
+            )
+            print("🔄 Creating new asset for: \(url.lastPathComponent)")
+        }
         
         // Load essential properties asynchronously
         do {
@@ -40,13 +48,47 @@ class VideoPlayerManager: ObservableObject {
             currentPlayingURL = urlString
             return player
         } catch {
-            print("Error loading asset: \(error)")
+            print("❌ Error loading asset: \(error)")
             // Fallback to simple player if asset loading fails
             let player = AVPlayer(playerItem: AVPlayerItem(url: url))
             playerCache[urlString] = player
             currentPlayingURL = urlString
             return player
         }
+    }
+    
+    func preloadVideo(url: URL) async {
+        let urlString = url.absoluteString
+        
+        // Skip if already cached
+        guard assetCache[urlString] == nil else {
+            print("⏭️ Asset already cached for: \(url.lastPathComponent)")
+            return
+        }
+        
+        print("🔄 Preloading video: \(url.lastPathComponent)")
+        let asset = AVURLAsset(
+            url: url,
+            options: [
+                AVURLAssetPreferPreciseDurationAndTimingKey: true
+            ]
+        )
+        
+        do {
+            // Preload essential properties
+            _ = try await asset.load(.isPlayable, .duration, .preferredTransform)
+            assetCache[urlString] = asset
+            print("✅ Successfully preloaded: \(url.lastPathComponent)")
+        } catch {
+            print("❌ Error preloading video: \(error)")
+        }
+    }
+    
+    func cleanupPlayer(for url: URL) {
+        let urlString = url.absoluteString
+        stopAudio(for: url)
+        playerCache.removeValue(forKey: urlString)
+        assetCache.removeValue(forKey: urlString)
     }
     
     func stopAudio(for url: URL) {
@@ -60,21 +102,19 @@ class VideoPlayerManager: ObservableObject {
         }
     }
     
-    func preloadVideo(url: URL) async {
-        let asset = AVURLAsset(url: url)
-        do {
-            // Preload essential properties
-            let status = try await asset.load(.isPlayable, .duration)
-            print("Preloaded video with status: \(status)")
-        } catch {
-            print("Error preloading video: \(error)")
+    func cleanupCache() {
+        // Clean up old cached assets if cache gets too large
+        let maxCacheSize = 5
+        if assetCache.count > maxCacheSize {
+            print("🧹 Cleaning up asset cache...")
+            let sortedKeys = assetCache.keys.sorted()
+            let keysToRemove = sortedKeys[..<(sortedKeys.count - maxCacheSize)]
+            keysToRemove.forEach { key in
+                assetCache.removeValue(forKey: key)
+                playerCache.removeValue(forKey: key)
+                print("🗑️ Removed cached asset: \(key)")
+            }
         }
-    }
-    
-    func cleanupPlayer(for url: URL) {
-        let urlString = url.absoluteString
-        stopAudio(for: url)
-        playerCache.removeValue(forKey: urlString)
     }
 }
 

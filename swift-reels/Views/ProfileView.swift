@@ -106,6 +106,8 @@ struct ProfileView: View {
 struct SavedVideosView: View {
     let videos: [VideoModel]
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var playerManager = VideoPlayerManager.shared
+    @State private var visibleIndices: Set<Int> = []
     
     var body: some View {
         NavigationStack {
@@ -123,21 +125,22 @@ struct SavedVideosView: View {
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 16) {
-                            ForEach(videos) { video in
+                            ForEach(Array(videos.enumerated()), id: \.element.id) { index, video in
                                 NavigationLink(destination: ReelPlayerView(video: video)) {
                                     VideoCardView(video: video)
                                         .padding(.horizontal)
                                 }
                                 .buttonStyle(PlainButtonStyle())
+                                .id(index)
+                                .onAppear {
+                                    handleVideoAppear(at: index)
+                                }
+                                .onDisappear {
+                                    handleVideoDisappear(at: index)
+                                }
                             }
                         }
                         .padding(.vertical)
-                        .onAppear {
-                            print("📱 Displaying \(videos.count) saved videos:")
-                            videos.forEach { video in
-                                print("   - \(video.title) (\(video.id))")
-                            }
-                        }
                     }
                 }
             }
@@ -152,5 +155,28 @@ struct SavedVideosView: View {
             }
             .background(Color(.systemBackground))
         }
+        .onDisappear {
+            // Clean up cached assets when view disappears
+            playerManager.cleanupCache()
+        }
+    }
+    
+    private func handleVideoAppear(at index: Int) {
+        visibleIndices.insert(index)
+        
+        // Preload the next few videos
+        let preloadCount = 2 // Number of videos to preload ahead
+        for offset in 1...preloadCount {
+            let nextIndex = index + offset
+            guard nextIndex < videos.count else { break }
+            
+            Task {
+                await playerManager.preloadVideo(url: videos[nextIndex].videoURL)
+            }
+        }
+    }
+    
+    private func handleVideoDisappear(at index: Int) {
+        visibleIndices.remove(index)
     }
 } 
