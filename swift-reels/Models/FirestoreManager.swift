@@ -1,6 +1,7 @@
 import Foundation
 import FirebaseFirestore
 import FirebaseAuth
+import AVFoundation
 
 // Array extension for chunking
 extension Array {
@@ -567,6 +568,27 @@ class FirestoreManager: ObservableObject {
     func saveVideo(videoId: String) async throws {
         guard let userId = Auth.auth().currentUser?.uid else { return }
         
+        // Get video details first
+        guard let video = try await getVideo(id: videoId) else {
+            print("❌ Video not found: \(videoId)")
+            return
+        }
+        
+        // Generate and upload thumbnail if not already exists
+        if video.thumbnailURL == nil {
+            do {
+                let thumbnailURL = try await generateAndUploadThumbnail(for: video)
+                // Update video document with thumbnail URL
+                try await db.collection("videos").document(videoId).updateData([
+                    "thumbnailURL": thumbnailURL.absoluteString
+                ])
+                print("✅ Added thumbnail for video: \(videoId)")
+            } catch {
+                print("⚠️ Failed to generate thumbnail: \(error.localizedDescription)")
+                // Continue saving even if thumbnail generation fails
+            }
+        }
+        
         let userRef = db.collection("users").document(userId)
         
         try await db.runTransaction { [weak self] transaction, errorPointer in
@@ -589,6 +611,64 @@ class FirestoreManager: ObservableObject {
         }
         
         print("✅ Saved video: \(videoId)")
+    }
+    
+    /// Generates and uploads a thumbnail for a video
+    private func generateAndUploadThumbnail(for video: VideoModel) async throws -> URL {
+        print("🖼️ Generating thumbnail for video: \(video.id)")
+        
+        // Create AVAsset
+        let asset = AVURLAsset(url: video.videoURL)
+        let generator = AVAssetImageGenerator(asset: asset)
+        generator.appliesPreferredTrackTransform = true
+        
+        // Get thumbnail at 1 second or video duration midpoint
+        let duration = try await asset.load(.duration)
+        let time = CMTime(seconds: min(1.0, duration.seconds / 2), preferredTimescale: 600)
+        
+        do {
+            let cgImage = try await generator.image(at: time).image
+            let uiImage = UIImage(cgImage: cgImage)
+            
+            // Convert to data with medium quality JPEG
+            guard let imageData = uiImage.jpegData(compressionQuality: 0.7) else {
+                throw NSError(domain: "FirestoreManager", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to convert thumbnail to JPEG"])
+            }
+            
+            // Upload to Firebase Storage
+            let filename = "thumbnails/\(video.id).jpg"
+            return try await StorageManager.shared.uploadThumbnail(data: imageData, filename: filename)
+        } catch {
+            print("❌ Error generating thumbnail: \(error.localizedDescription)")
+            throw error
+        }
+    }
+    
+    /// Regenerates thumbnails for all videos that don't have one
+    func regenerateMissingThumbnails() async throws {
+        print("🔄 Starting thumbnail regeneration...")
+        
+        let snapshot = try await db.collection("videos").getDocuments()
+        var updatedCount = 0
+        
+        for document in snapshot.documents {
+            guard let video = VideoModel.fromFirestore(document) else { continue }
+            
+            if video.thumbnailURL == nil {
+                do {
+                    let thumbnailURL = try await generateAndUploadThumbnail(for: video)
+                    try await db.collection("videos").document(video.id).updateData([
+                        "thumbnailURL": thumbnailURL.absoluteString
+                    ])
+                    updatedCount += 1
+                    print("✅ Generated thumbnail for: \(video.title)")
+                } catch {
+                    print("❌ Failed to generate thumbnail for \(video.id): \(error.localizedDescription)")
+                }
+            }
+        }
+        
+        print("✨ Thumbnail regeneration complete. Updated \(updatedCount) videos.")
     }
     
     /// Unsaves a video for a user

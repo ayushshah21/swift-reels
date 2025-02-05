@@ -19,9 +19,9 @@ enum WorkoutType: String, Codable, CaseIterable {
         case .strength: return "dumbbell.fill"
         case .cardio: return "heart.circle.fill"
         case .yoga: return "figure.mind.and.body"
-        case .hiit: return "bolt.fill"
+        case .hiit: return "figure.highintensity.intervaltraining"
         case .pilates: return "figure.flexibility"
-        case .stretching: return "figure.mixed.cardio"
+        case .stretching: return "figure.flexibility"
         case .bodyweight: return "figure.mind.and.body"
         case .other: return "figure.run"
         }

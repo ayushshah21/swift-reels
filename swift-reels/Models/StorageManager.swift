@@ -311,4 +311,45 @@ class StorageManager: ObservableObject {
         
         print("✨ Storage cleanup complete!")
     }
+    
+    /// Uploads a thumbnail image and returns the download URL
+    func uploadThumbnail(data: Data, filename: String) async throws -> URL {
+        print("📤 Starting thumbnail upload: \(filename)")
+        
+        let ref = storage.reference().child(filename)
+        
+        // Create metadata
+        let metadata = StorageMetadata()
+        metadata.contentType = "image/jpeg"
+        metadata.customMetadata = [
+            "uploadedAt": ISO8601DateFormatter().string(from: Date()),
+            "size": "\(data.count)"
+        ]
+        
+        do {
+            // Upload the data with metadata
+            print("📤 Uploading \(data.count) bytes...")
+            let result = try await ref.putDataAsync(data, metadata: metadata)
+            print("✅ Upload metadata: \(result.dictionaryRepresentation())")
+            
+            // Get the download URL
+            let url = try await ref.downloadURL()
+            print("✅ Thumbnail uploaded successfully to: \(url)")
+            return url
+        } catch {
+            print("❌ Thumbnail upload failed: \(error.localizedDescription)")
+            throw error
+        }
+    }
+    
+    /// Deletes a thumbnail from storage
+    func deleteThumbnail(url: URL) async throws {
+        guard let path = url.path.components(separatedBy: "/thumbnails/").last else {
+            throw NSError(domain: "StorageManager", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid thumbnail URL"])
+        }
+        
+        let ref = storage.reference().child("thumbnails/\(path)")
+        try await ref.delete()
+        print("✅ Thumbnail deleted successfully: \(path)")
+    }
 } 
