@@ -94,6 +94,40 @@ struct WorkoutMetadata: Codable {
         return "\(minutes) min"
     }
     
+    // MARK: - Firestore Conversion
+    
+    func toFirestore() -> [String: Any] {
+        return [
+            "type": type.rawValue,
+            "level": level.rawValue,
+            "equipment": equipment.map { $0.rawValue },
+            "durationSeconds": durationSeconds,
+            "estimatedCalories": estimatedCalories as Any
+        ]
+    }
+    
+    static func fromFirestore(_ data: [String: Any]) -> WorkoutMetadata? {
+        guard let typeString = data["type"] as? String,
+              let type = WorkoutType(rawValue: typeString),
+              let levelString = data["level"] as? String,
+              let level = WorkoutLevel(rawValue: levelString),
+              let equipmentStrings = data["equipment"] as? [String],
+              let durationSeconds = data["durationSeconds"] as? Int else {
+            return nil
+        }
+        
+        let equipment = equipmentStrings.compactMap { WorkoutEquipment(rawValue: $0) }
+        let estimatedCalories = data["estimatedCalories"] as? Int
+        
+        return WorkoutMetadata(
+            type: type,
+            level: level,
+            equipment: equipment,
+            durationSeconds: durationSeconds,
+            estimatedCalories: estimatedCalories
+        )
+    }
+    
     // Preview data for development and testing
     static func preview() -> WorkoutMetadata {
         WorkoutMetadata(
