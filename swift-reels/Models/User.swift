@@ -11,9 +11,10 @@ struct User: Identifiable, Codable {
     var postsCount: Int
     var followersCount: Int
     var followingCount: Int
+    var savedVideos: [String]  // Array of video IDs
     var createdAt: Date
     
-    init(id: String, email: String, username: String? = nil, postsCount: Int = 0, followersCount: Int = 0, followingCount: Int = 0, createdAt: Date = Date()) {
+    init(id: String, email: String, username: String? = nil, postsCount: Int = 0, followersCount: Int = 0, followingCount: Int = 0, savedVideos: [String] = [], createdAt: Date = Date()) {
         self.id = id
         self.email = email
         // Generate username from email if none provided
@@ -26,6 +27,7 @@ struct User: Identifiable, Codable {
         self.postsCount = postsCount
         self.followersCount = followersCount
         self.followingCount = followingCount
+        self.savedVideos = savedVideos
         self.createdAt = createdAt
     }
     
@@ -38,6 +40,7 @@ struct User: Identifiable, Codable {
         case postsCount
         case followersCount
         case followingCount
+        case savedVideos
         case createdAt
     }
     
@@ -54,6 +57,8 @@ struct User: Identifiable, Codable {
             return nil
         }
         
+        let savedVideos = data["savedVideos"] as? [String] ?? []
+        
         return User(
             id: document.documentID,
             email: email,
@@ -61,6 +66,7 @@ struct User: Identifiable, Codable {
             postsCount: postsCount,
             followersCount: followersCount,
             followingCount: followingCount,
+            savedVideos: savedVideos,
             createdAt: createdAt
         )
     }
@@ -74,6 +80,7 @@ struct User: Identifiable, Codable {
             "postsCount": postsCount,
             "followersCount": followersCount,
             "followingCount": followingCount,
+            "savedVideos": savedVideos,
             "createdAt": Timestamp(date: createdAt)
         ]
     }

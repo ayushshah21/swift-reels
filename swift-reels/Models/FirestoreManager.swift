@@ -2,6 +2,15 @@ import Foundation
 import FirebaseFirestore
 import FirebaseAuth
 
+// Array extension for chunking
+extension Array {
+    func chunked(into size: Int) -> [[Element]] {
+        return stride(from: 0, to: count, by: size).map {
+            Array(self[$0 ..< Swift.min($0 + size, count)])
+        }
+    }
+}
+
 @MainActor
 class FirestoreManager: ObservableObject {
     static let shared = FirestoreManager()
@@ -550,5 +559,106 @@ class FirestoreManager: ObservableObject {
         }
         
         print("✅ Finished resetting all comment counts")
+    }
+    
+    // MARK: - Video Saving Operations
+    
+    /// Saves a video for a user
+    func saveVideo(videoId: String) async throws {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+        
+        let userRef = db.collection("users").document(userId)
+        
+        try await db.runTransaction { [weak self] transaction, errorPointer in
+            guard let self = self else { return nil }
+            
+            // Get current user data
+            let userDoc = try? transaction.getDocument(userRef)
+            guard let userData = userDoc?.data() else { return nil }
+            
+            // Get current saved videos
+            var savedVideos = userData["savedVideos"] as? [String] ?? []
+            
+            // Add video if not already saved
+            if !savedVideos.contains(videoId) {
+                savedVideos.append(videoId)
+                transaction.updateData(["savedVideos": savedVideos], forDocument: userRef)
+            }
+            
+            return nil
+        }
+        
+        print("✅ Saved video: \(videoId)")
+    }
+    
+    /// Unsaves a video for a user
+    func unsaveVideo(videoId: String) async throws {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+        
+        let userRef = db.collection("users").document(userId)
+        
+        try await db.runTransaction { [weak self] transaction, errorPointer in
+            guard let self = self else { return nil }
+            
+            // Get current user data
+            let userDoc = try? transaction.getDocument(userRef)
+            guard let userData = userDoc?.data() else { return nil }
+            
+            // Get current saved videos
+            var savedVideos = userData["savedVideos"] as? [String] ?? []
+            
+            // Remove video if saved
+            if let index = savedVideos.firstIndex(of: videoId) {
+                savedVideos.remove(at: index)
+                transaction.updateData(["savedVideos": savedVideos], forDocument: userRef)
+            }
+            
+            return nil
+        }
+        
+        print("✅ Unsaved video: \(videoId)")
+    }
+    
+    /// Checks if a video is saved by the user
+    func isVideoSaved(_ videoId: String) async throws -> Bool {
+        guard let userId = Auth.auth().currentUser?.uid else { return false }
+        
+        let userDoc = try await db.collection("users").document(userId).getDocument()
+        guard let userData = userDoc.data() else { return false }
+        
+        let savedVideos = userData["savedVideos"] as? [String] ?? []
+        return savedVideos.contains(videoId)
+    }
+    
+    /// Gets all saved videos for a user
+    func getSavedVideos() async throws -> [VideoModel] {
+        guard let userId = Auth.auth().currentUser?.uid else { return [] }
+        
+        // Get user's saved video IDs
+        let userDoc = try await db.collection("users").document(userId).getDocument()
+        guard let userData = userDoc.data(),
+              let savedVideoIds = userData["savedVideos"] as? [String] else {
+            return []
+        }
+        
+        // If no saved videos, return empty array
+        if savedVideoIds.isEmpty {
+            return []
+        }
+        
+        // Get all saved videos
+        let chunkedIds = savedVideoIds.chunked(into: 10) // Process in chunks to avoid large queries
+        var savedVideos: [VideoModel] = []
+        
+        for chunk in chunkedIds {
+            let snapshot = try await db.collection("videos")
+                .whereField(FieldPath.documentID(), in: chunk)
+                .getDocuments()
+            
+            let videos = snapshot.documents.compactMap { VideoModel.fromFirestore($0) }
+            savedVideos.append(contentsOf: videos)
+        }
+        
+        return savedVideos
     }
 } 

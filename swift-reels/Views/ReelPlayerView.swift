@@ -31,7 +31,8 @@ class VideoPlayerManager: ObservableObject {
         
         // Load essential properties asynchronously
         do {
-            _ = try await asset.load(.isPlayable, .duration)
+            // Load all required properties upfront including preferredTransform
+            _ = try await asset.load(.isPlayable, .duration, .preferredTransform)
             let playerItem = AVPlayerItem(asset: asset)
             let player = AVPlayer(playerItem: playerItem)
             player.automaticallyWaitsToMinimizeStalling = true
@@ -83,7 +84,7 @@ struct ReelPlayerView: View {
     @StateObject private var firestoreManager = FirestoreManager.shared
     @State private var player: AVPlayer?
     @State private var isPlaying = false
-    @State private var isBookmarked: Bool
+    @State private var isBookmarked = false
     @State private var showComments = false
     @State private var isLoading = true
     @State private var showHeartAnimation = false
@@ -197,9 +198,7 @@ struct ReelPlayerView: View {
                         .foregroundColor(.white)
                         
                         Button(action: {
-                            withAnimation {
-                                isBookmarked.toggle()
-                            }
+                            handleBookmarkAction()
                         }) {
                             VStack(spacing: 4) {
                                 Image(systemName: isBookmarked ? "bookmark.fill" : "bookmark")
@@ -248,9 +247,10 @@ struct ReelPlayerView: View {
             isPlaying = true
             isLoading = false
             
-            // Check if user has liked this video and setup real-time listener
+            // Check if user has liked and saved this video
             do {
                 isLiked = try await firestoreManager.hasUserLikedVideo(videoId: video.id)
+                isBookmarked = try await firestoreManager.isVideoSaved(video.id)
                 
                 // Setup real-time listener for video updates
                 firestoreManager.addVideoListener(videoId: video.id) { updatedVideo in
@@ -262,7 +262,7 @@ struct ReelPlayerView: View {
                     }
                 }
             } catch {
-                print("❌ Error checking like status: \(error.localizedDescription)")
+                print("❌ Error checking video status: \(error.localizedDescription)")
             }
         }
         .onDisappear {
@@ -300,6 +300,26 @@ struct ReelPlayerView: View {
                 }
             } catch {
                 print("❌ Error handling like action: \(error.localizedDescription)")
+            }
+        }
+    }
+    
+    private func handleBookmarkAction() {
+        Task {
+            do {
+                if isBookmarked {
+                    try await firestoreManager.unsaveVideo(videoId: video.id)
+                    withAnimation(.spring()) {
+                        isBookmarked = false
+                    }
+                } else {
+                    try await firestoreManager.saveVideo(videoId: video.id)
+                    withAnimation(.spring()) {
+                        isBookmarked = true
+                    }
+                }
+            } catch {
+                print("❌ Error handling bookmark action: \(error.localizedDescription)")
             }
         }
     }
