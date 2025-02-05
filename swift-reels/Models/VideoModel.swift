@@ -10,7 +10,7 @@ struct VideoModel: Identifiable, Equatable {
     let thumbnailURL: URL?
     let duration: TimeInterval
     let workout: WorkoutMetadata
-    let likes: Int
+    let likeCount: Int
     let comments: Int
     var isBookmarked: Bool
     let trainer: String
@@ -20,14 +20,14 @@ struct VideoModel: Identifiable, Equatable {
         lhs.id == rhs.id
     }
     
-    init(id: String, title: String, videoURL: URL, thumbnailURL: URL?, duration: TimeInterval, workout: WorkoutMetadata, likes: Int, comments: Int, isBookmarked: Bool, trainer: String, createdAt: Date = Date()) {
+    init(id: String, title: String, videoURL: URL, thumbnailURL: URL?, duration: TimeInterval, workout: WorkoutMetadata, likeCount: Int, comments: Int, isBookmarked: Bool, trainer: String, createdAt: Date = Date()) {
         self.id = id
         self.title = title
         self.videoURL = videoURL
         self.thumbnailURL = thumbnailURL
         self.duration = duration
         self.workout = workout
-        self.likes = likes
+        self.likeCount = likeCount
         self.comments = comments
         self.isBookmarked = isBookmarked
         self.trainer = trainer
@@ -44,7 +44,7 @@ struct VideoModel: Identifiable, Equatable {
             "thumbnailURL": thumbnailURL?.absoluteString as Any,
             "duration": duration,
             "workout": workout.toFirestore(),
-            "likes": likes,
+            "likes": likeCount,
             "comments": comments,
             "isBookmarked": isBookmarked,
             "trainer": trainer,
@@ -61,16 +61,29 @@ struct VideoModel: Identifiable, Equatable {
               let duration = data["duration"] as? TimeInterval,
               let workoutData = data["workout"] as? [String: Any],
               let workout = WorkoutMetadata.fromFirestore(workoutData),
-              let likes = data["likes"] as? Int,
               let comments = data["comments"] as? Int,
               let isBookmarked = data["isBookmarked"] as? Bool,
               let trainer = data["trainer"] as? String,
               let createdAt = (data["createdAt"] as? Timestamp)?.dateValue() else {
+            print("❌ Failed to parse video document: \(document.documentID)")
+            print("   Data: \(data)")
             return nil
+        }
+        
+        // Handle both 'likes' and 'likeCount' fields for backward compatibility
+        let likeCount: Int
+        if let likes = data["likes"] as? Int {
+            likeCount = likes
+        } else if let likes = data["likeCount"] as? Int {
+            likeCount = likes
+        } else {
+            likeCount = 0
         }
         
         let thumbnailURLString = data["thumbnailURL"] as? String
         let thumbnailURL = thumbnailURLString.flatMap { URL(string: $0) }
+        
+        print("✅ Parsed video: \(title) with type: \(workout.type.rawValue)")
         
         return VideoModel(
             id: document.documentID,
@@ -79,7 +92,7 @@ struct VideoModel: Identifiable, Equatable {
             thumbnailURL: thumbnailURL,
             duration: duration,
             workout: workout,
-            likes: likes,
+            likeCount: likeCount,
             comments: comments,
             isBookmarked: isBookmarked,
             trainer: trainer,
@@ -102,7 +115,7 @@ struct VideoModel: Identifiable, Equatable {
                 durationSeconds: 348,
                 estimatedCalories: 100
             ),
-            likes: 0,
+            likeCount: 0,
             comments: 0,
             isBookmarked: false,
             trainer: "Sarah Peace"
@@ -120,7 +133,7 @@ struct VideoModel: Identifiable, Equatable {
                 durationSeconds: 420,
                 estimatedCalories: 150
             ),
-            likes: 0,
+            likeCount: 0,
             comments: 0,
             isBookmarked: false,
             trainer: "Emma Flow"
@@ -138,7 +151,7 @@ struct VideoModel: Identifiable, Equatable {
                 durationSeconds: 360,
                 estimatedCalories: 200
             ),
-            likes: 0,
+            likeCount: 0,
             comments: 0,
             isBookmarked: false,
             trainer: "Mike Zen"
@@ -156,7 +169,7 @@ struct VideoModel: Identifiable, Equatable {
                 durationSeconds: 348,
                 estimatedCalories: 250
             ),
-            likes: 0,
+            likeCount: 0,
             comments: 0,
             isBookmarked: false,
             trainer: "Chris Burn"
@@ -174,7 +187,7 @@ struct VideoModel: Identifiable, Equatable {
                 durationSeconds: 348,
                 estimatedCalories: 80
             ),
-            likes: 0,
+            likeCount: 0,
             comments: 0,
             isBookmarked: false,
             trainer: "Lisa Flex"

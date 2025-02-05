@@ -39,7 +39,9 @@ class FirestoreManager: ObservableObject {
         }
         
         let snapshot = try await query.getDocuments()
-        return snapshot.documents.compactMap { VideoModel.fromFirestore($0) }
+        let videos = snapshot.documents.compactMap { VideoModel.fromFirestore($0) }
+        print("📱 Fetched \(videos.count) videos for type: \(workoutType?.rawValue ?? "all")")
+        return videos
     }
     
     /// Fetches next page of videos after the last video
@@ -54,7 +56,9 @@ class FirestoreManager: ObservableObject {
         }
         
         let snapshot = try await query.getDocuments()
-        return snapshot.documents.compactMap { VideoModel.fromFirestore($0) }
+        let videos = snapshot.documents.compactMap { VideoModel.fromFirestore($0) }
+        print("📱 Fetched \(videos.count) more videos for type: \(workoutType?.rawValue ?? "all")")
+        return videos
     }
     
     /// Uploads a video document to Firestore
@@ -79,7 +83,8 @@ class FirestoreManager: ObservableObject {
             guard let self = self else { return nil }
             // Get the video document
             let videoDoc = try? transaction.getDocument(self.db.collection("videos").document(videoId))
-            guard let videoDoc = videoDoc else { return nil }
+            guard let videoDoc = videoDoc,
+                  let data = videoDoc.data() else { return nil }
             
             // Check if user already liked
             let likeDoc = try? transaction.getDocument(likeRef)
@@ -90,10 +95,10 @@ class FirestoreManager: ObservableObject {
             }
             
             // Get current like count
-            let currentLikes = videoDoc.data()?["likeCount"] as? Int ?? 0
+            let currentLikeCount = data["likes"] as? Int ?? 0
             
             // Update video document with new like count
-            transaction.updateData(["likeCount": currentLikes + 1], forDocument: videoDoc.reference)
+            transaction.updateData(["likes": currentLikeCount + 1], forDocument: videoDoc.reference)
             
             // Create like document
             transaction.setData([
@@ -116,7 +121,8 @@ class FirestoreManager: ObservableObject {
             guard let self = self else { return nil }
             // Get the video document
             let videoDoc = try? transaction.getDocument(self.db.collection("videos").document(videoId))
-            guard let videoDoc = videoDoc else { return nil }
+            guard let videoDoc = videoDoc,
+                  let data = videoDoc.data() else { return nil }
             
             // Check if user already liked
             let likeDoc = try? transaction.getDocument(likeRef)
@@ -127,10 +133,10 @@ class FirestoreManager: ObservableObject {
             }
             
             // Get current like count
-            let currentLikes = videoDoc.data()?["likeCount"] as? Int ?? 0
+            let currentLikeCount = data["likes"] as? Int ?? 0
             
             // Update video document with new like count
-            transaction.updateData(["likeCount": max(0, currentLikes - 1)], forDocument: videoDoc.reference)
+            transaction.updateData(["likes": max(0, currentLikeCount - 1)], forDocument: videoDoc.reference)
             
             // Delete like document
             transaction.deleteDocument(likeRef)
@@ -198,7 +204,7 @@ class FirestoreManager: ObservableObject {
                     durationSeconds: Int(duration),
                     estimatedCalories: 150
                 ),
-                likes: 0,
+                likeCount: 0,
                 comments: 0,
                 isBookmarked: false,
                 trainer: trainer
@@ -316,7 +322,7 @@ class FirestoreManager: ObservableObject {
                     thumbnailURL: nil,
                     duration: properVideo.duration,
                     workout: properVideo.workout,
-                    likes: 0,
+                    likeCount: 0,
                     comments: 0,
                     isBookmarked: false,
                     trainer: properVideo.trainer
@@ -349,7 +355,7 @@ class FirestoreManager: ObservableObject {
                         durationSeconds: Int(metadata["duration"] ?? "300") ?? 300,
                         estimatedCalories: 150
                     ),
-                    likes: 0,
+                    likeCount: 0,
                     comments: 0,
                     isBookmarked: false,
                     trainer: metadata["trainer"] ?? "Fitness Coach"
@@ -400,5 +406,149 @@ class FirestoreManager: ObservableObject {
                 let videos = documents.compactMap { VideoModel.fromFirestore($0) }
                 completion(videos)
             }
+    }
+    
+    // MARK: - Comment Operations
+    
+    /// Adds a comment to a video
+    func addComment(to videoId: String, text: String) async throws {
+        guard let currentUser = Auth.auth().currentUser else { return }
+        
+        // Get user's username, fallback to email if not found
+        let username: String
+        if let user = try? await getUser(id: currentUser.uid) {
+            username = user.username
+        } else {
+            username = currentUser.email ?? "Anonymous User"
+        }
+        
+        let commentRef = db.collection("videos").document(videoId)
+            .collection("comments").document()
+        
+        try await db.runTransaction { [weak self] transaction, errorPointer in
+            guard let self = self else { return nil }
+            
+            // Get the video document
+            let videoDoc = try? transaction.getDocument(self.db.collection("videos").document(videoId))
+            guard let videoDoc = videoDoc,
+                  let data = videoDoc.data() else { return nil }
+            
+            // Get current comment count
+            let currentCommentCount = data["comments"] as? Int ?? 0
+            
+            // Create comment document
+            let comment = Comment(
+                id: commentRef.documentID,
+                videoId: videoId,
+                userId: currentUser.uid,
+                text: text,
+                username: username,
+                createdAt: Date()
+            )
+            
+            // Update video document with new comment count
+            transaction.updateData(["comments": currentCommentCount + 1], forDocument: videoDoc.reference)
+            
+            // Add the comment
+            transaction.setData(comment.toFirestore(), forDocument: commentRef)
+            
+            return nil
+        }
+        
+        print("✅ Added comment to video: \(videoId)")
+    }
+    
+    /// Deletes a comment from a video
+    func deleteComment(_ commentId: String, from videoId: String) async throws {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+        
+        let commentRef = db.collection("videos").document(videoId)
+            .collection("comments").document(commentId)
+        
+        // Verify comment belongs to user
+        let comment = try await commentRef.getDocument()
+        guard let commentData = comment.data(),
+              let commentUserId = commentData["userId"] as? String,
+              commentUserId == userId else {
+            throw NSError(domain: "FirestoreManager", code: 2, userInfo: [NSLocalizedDescriptionKey: "Not authorized to delete this comment"])
+        }
+        
+        try await db.runTransaction { [weak self] transaction, errorPointer in
+            guard let self = self else { return nil }
+            
+            // Get the video document
+            let videoDoc = try? transaction.getDocument(self.db.collection("videos").document(videoId))
+            guard let videoDoc = videoDoc,
+                  let data = videoDoc.data() else { return nil }
+            
+            // Get current comment count
+            let currentCommentCount = data["comments"] as? Int ?? 0
+            
+            // Update video document with new comment count
+            transaction.updateData(["comments": max(0, currentCommentCount - 1)], forDocument: videoDoc.reference)
+            
+            // Delete the comment
+            transaction.deleteDocument(commentRef)
+            
+            return nil
+        }
+        
+        print("✅ Deleted comment from video: \(videoId)")
+    }
+    
+    /// Fetches comments for a video
+    func getComments(for videoId: String, limit: Int = 20) async throws -> [Comment] {
+        let snapshot = try await db.collection("videos").document(videoId)
+            .collection("comments")
+            .order(by: "createdAt", descending: true)
+            .limit(to: limit)
+            .getDocuments()
+        
+        return snapshot.documents.compactMap { Comment.fromFirestore($0) }
+    }
+    
+    /// Adds a real-time listener for comments on a video
+    func addCommentsListener(videoId: String, completion: @escaping ([Comment]) -> Void) -> ListenerRegistration {
+        return db.collection("videos").document(videoId)
+            .collection("comments")
+            .order(by: "createdAt", descending: true)
+            .addSnapshotListener { snapshot, error in
+                guard let documents = snapshot?.documents else {
+                    print("❌ Error fetching comments: \(error?.localizedDescription ?? "Unknown error")")
+                    completion([])
+                    return
+                }
+                let comments = documents.compactMap { Comment.fromFirestore($0) }
+                completion(comments)
+            }
+    }
+    
+    /// Resets comment count for a video
+    func resetCommentCount(for videoId: String) async throws {
+        let commentsSnapshot = try await db.collection("videos").document(videoId)
+            .collection("comments")
+            .getDocuments()
+        
+        let actualCount = commentsSnapshot.documents.count
+        
+        try await db.collection("videos").document(videoId)
+            .updateData(["comments": actualCount])
+        
+        print("✅ Reset comment count for video \(videoId) to \(actualCount)")
+    }
+    
+    /// Resets comment counts for all videos
+    func resetAllCommentCounts() async throws {
+        print("🔄 Starting comment count reset for all videos...")
+        
+        // Get all videos
+        let videosSnapshot = try await db.collection("videos").getDocuments()
+        
+        // Reset count for each video
+        for document in videosSnapshot.documents {
+            try await resetCommentCount(for: document.documentID)
+        }
+        
+        print("✅ Finished resetting all comment counts")
     }
 } 

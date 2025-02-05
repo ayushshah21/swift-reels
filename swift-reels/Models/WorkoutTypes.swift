@@ -113,11 +113,18 @@ struct WorkoutMetadata: Codable {
               let level = WorkoutLevel(rawValue: levelString),
               let equipmentStrings = data["equipment"] as? [String],
               let durationSeconds = data["durationSeconds"] as? Int else {
+            print("❌ Failed to parse workout metadata:")
+            print("   Type: \(data["type"] as? String ?? "nil")")
+            print("   Level: \(data["level"] as? String ?? "nil")")
+            print("   Equipment: \(data["equipment"] as? [String] ?? [])")
+            print("   Duration: \(data["durationSeconds"] as? Int ?? -1)")
             return nil
         }
         
         let equipment = equipmentStrings.compactMap { WorkoutEquipment(rawValue: $0) }
         let estimatedCalories = data["estimatedCalories"] as? Int
+        
+        print("✅ Parsed workout metadata: type=\(type.rawValue), level=\(level.rawValue)")
         
         return WorkoutMetadata(
             type: type,

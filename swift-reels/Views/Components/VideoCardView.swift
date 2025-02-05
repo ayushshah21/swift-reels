@@ -5,66 +5,57 @@ struct VideoCardView: View {
     @State private var isPressed = false
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Video Preview
-            ZStack(alignment: .bottomLeading) {
-                Rectangle()
-                    .fill(Theme.card)
-                    .aspectRatio(9/16, contentMode: .fit)
-                
-                // Gradient overlay
-                Theme.gradient
-                
-                // Video Info Overlay
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        // Duration pill
-                        Text("\(Int(video.duration/60))min")
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(.ultraThinMaterial)
-                            .clipShape(Capsule())
-                        
-                        Spacer()
-                        
-                        // Level pill (renamed from Difficulty)
-                        Text(video.workout.level.rawValue)
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(.ultraThinMaterial)
-                            .clipShape(Capsule())
+        VStack(alignment: .leading, spacing: 12) {
+            // Video Thumbnail
+            ZStack {
+                if let thumbnailURL = video.thumbnailURL {
+                    AsyncImage(url: thumbnailURL) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        Color.gray.opacity(0.3)
                     }
-                    
-                    Spacer()
-                    
-                    // Title and trainer
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(video.title)
-                            .font(.title3)
-                            .fontWeight(.bold)
-                            .foregroundColor(.white)
-                        
-                        Text("with \(video.trainer)")
-                            .font(.subheadline)
-                            .foregroundColor(.white.opacity(0.8))
-                    }
-                    
-                    // Stats
-                    HStack(spacing: 16) {
-                        Label("\(video.likes)", systemImage: "heart.fill")
-                            .foregroundColor(.red)
-                        Label("\(video.comments)", systemImage: "message.fill")
-                            .foregroundColor(.blue)
-                    }
-                    .font(.caption)
-                    .padding(.top, 4)
+                } else {
+                    Color.gray.opacity(0.3)
                 }
-                .padding()
+                
+                Image(systemName: "play.fill")
+                    .font(.title)
+                    .foregroundColor(.white)
+                    .shadow(radius: 5)
             }
+            .frame(height: 200)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            
+            // Video Info
+            VStack(alignment: .leading, spacing: 8) {
+                Text(video.title)
+                    .font(.headline)
+                    .lineLimit(2)
+                
+                Text("with \(video.trainer)")
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+                
+                HStack {
+                    Label("\(video.workout.level.rawValue)", systemImage: "flame.fill")
+                        .foregroundColor(.orange)
+                    Label("\(video.workout.type.rawValue)", systemImage: "figure.run")
+                        .foregroundColor(.blue)
+                }
+                .font(.caption)
+                
+                HStack {
+                    Label("\(video.likeCount)", systemImage: "heart.fill")
+                        .foregroundColor(.red)
+                    Label("\(video.comments)", systemImage: "message.fill")
+                        .foregroundColor(.blue)
+                }
+                .font(.caption)
+                .padding(.top, 4)
+            }
+            .padding()
         }
         .background(Theme.card)
         .clipShape(RoundedRectangle(cornerRadius: 24))

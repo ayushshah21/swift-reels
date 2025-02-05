@@ -86,14 +86,16 @@ struct ReelPlayerView: View {
     @State private var isBookmarked: Bool
     @State private var showComments = false
     @State private var isLoading = true
+    @State private var showHeartAnimation = false
     @State private var isLiked = false
     @State private var likeCount: Int
-    @State private var showHeartAnimation = false
+    @State private var commentCount: Int
     
     init(video: VideoModel) {
         self.video = video
         _isBookmarked = State(initialValue: video.isBookmarked)
-        _likeCount = State(initialValue: video.likes)
+        _likeCount = State(initialValue: video.likeCount)
+        _commentCount = State(initialValue: video.comments)
     }
     
     var body: some View {
@@ -187,7 +189,7 @@ struct ReelPlayerView: View {
                             VStack(spacing: 4) {
                                 Image(systemName: "message.fill")
                                     .font(.title)
-                                Text("\(video.comments)")
+                                Text("\(commentCount)")
                                     .font(.caption)
                                     .bold()
                             }
@@ -246,9 +248,19 @@ struct ReelPlayerView: View {
             isPlaying = true
             isLoading = false
             
-            // Check if user has liked this video
+            // Check if user has liked this video and setup real-time listener
             do {
                 isLiked = try await firestoreManager.hasUserLikedVideo(videoId: video.id)
+                
+                // Setup real-time listener for video updates
+                firestoreManager.addVideoListener(videoId: video.id) { updatedVideo in
+                    if let updatedVideo = updatedVideo {
+                        withAnimation(.spring()) {
+                            likeCount = updatedVideo.likeCount
+                            commentCount = updatedVideo.comments
+                        }
+                    }
+                }
             } catch {
                 print("❌ Error checking like status: \(error.localizedDescription)")
             }
@@ -279,13 +291,11 @@ struct ReelPlayerView: View {
                     try await firestoreManager.unlikeVideo(videoId: video.id)
                     withAnimation(.spring()) {
                         isLiked = false
-                        likeCount -= 1
                     }
                 } else {
                     try await firestoreManager.likeVideo(videoId: video.id)
                     withAnimation(.spring()) {
                         isLiked = true
-                        likeCount += 1
                     }
                 }
             } catch {

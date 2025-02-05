@@ -6,14 +6,34 @@ class AuthViewModel: ObservableObject {
     @Published var isAuthenticated = false
     @Published var errorMessage: String?
     @Published var isLoading = false
+    private let firestoreManager = FirestoreManager.shared
     
     init() {
         // Set up auth state listener
         Auth.auth().addStateDidChangeListener { [weak self] _, user in
-            DispatchQueue.main.async {
-                self?.isAuthenticated = user != nil
+            guard let self = self else { return }
+            
+            Task {
+                await MainActor.run {
+                    self.isAuthenticated = user != nil
+                }
+                
                 if let user = user {
                     print("👤 User is signed in with ID: \(user.uid)")
+                    
+                    // Check if user document exists, create if it doesn't
+                    do {
+                        if try await self.firestoreManager.getUser(id: user.uid) == nil {
+                            print("📝 Creating missing user document for existing user")
+                            let newUser = User(
+                                id: user.uid,
+                                email: user.email ?? "unknown@email.com"
+                            )
+                            try await self.firestoreManager.createUser(newUser)
+                        }
+                    } catch {
+                        print("❌ Error handling user document: \(error.localizedDescription)")
+                    }
                 }
             }
         }
@@ -32,6 +52,17 @@ class AuthViewModel: ObservableObject {
         
         do {
             let result = try await Auth.auth().signIn(withEmail: email, password: password)
+            
+            // Check if user document exists, create if it doesn't
+            if try await firestoreManager.getUser(id: result.user.uid) == nil {
+                print("📝 Creating missing user document for existing user")
+                let user = User(
+                    id: result.user.uid,
+                    email: result.user.email ?? email
+                )
+                try await firestoreManager.createUser(user)
+            }
+            
             isAuthenticated = true
             print("✅ User signed in successfully: \(result.user.uid)")
         } catch {
@@ -49,6 +80,14 @@ class AuthViewModel: ObservableObject {
         
         do {
             let result = try await Auth.auth().createUser(withEmail: email, password: password)
+            
+            // Create user document in Firestore
+            let user = User(
+                id: result.user.uid,
+                email: result.user.email ?? email
+            )
+            try await firestoreManager.createUser(user)
+            
             isAuthenticated = true
             print("✅ User created successfully: \(result.user.uid)")
         } catch {
