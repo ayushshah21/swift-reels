@@ -6,6 +6,7 @@ struct SearchView: View {
     @State private var searchResults: [VideoModel] = []
     @State private var isSearching = false
     @State private var selectedWorkoutType: WorkoutType = .all
+    @State private var searchDebounceTask: Task<Void, Never>?
     
     var body: some View {
         NavigationStack {
@@ -17,9 +18,6 @@ struct SearchView: View {
                     TextField("Search workouts...", text: $searchText)
                         .textFieldStyle(.plain)
                         .autocorrectionDisabled()
-                        .onSubmit {
-                            performSearch()
-                        }
                     if !searchText.isEmpty {
                         Button(action: {
                             searchText = ""
@@ -70,30 +68,56 @@ struct SearchView: View {
                 }
             }
             .navigationTitle("Search")
+            .onChange(of: searchText) { newValue in
+                // Cancel any previous search task
+                searchDebounceTask?.cancel()
+                
+                // If search text is empty, clear results
+                if newValue.isEmpty {
+                    searchResults = []
+                    return
+                }
+                
+                // Create a new debounced search task
+                searchDebounceTask = Task {
+                    // Wait a brief moment to avoid too many searches while typing
+                    try? await Task.sleep(nanoseconds: 300_000_000) // 0.3 seconds
+                    if !Task.isCancelled {
+                        await performSearch()
+                    }
+                }
+            }
             .onChange(of: selectedWorkoutType) { _ in
                 if !searchText.isEmpty {
-                    performSearch()
+                    Task {
+                        await performSearch()
+                    }
                 }
             }
         }
     }
     
-    private func performSearch() {
+    private func performSearch() async {
         guard !searchText.isEmpty else { return }
         
-        isSearching = true
-        Task {
-            do {
-                let videos = try await firestoreManager.searchVideos(
-                    query: searchText,
-                    workoutType: selectedWorkoutType != .all ? selectedWorkoutType : nil
-                )
+        await MainActor.run {
+            isSearching = true
+        }
+        
+        do {
+            let videos = try await firestoreManager.searchVideos(
+                query: searchText,
+                workoutType: selectedWorkoutType != .all ? selectedWorkoutType : nil
+            )
+            if !Task.isCancelled {
                 await MainActor.run {
                     searchResults = videos
                     isSearching = false
                 }
-            } catch {
-                print("❌ Error searching videos: \(error.localizedDescription)")
+            }
+        } catch {
+            print("❌ Error searching videos: \(error.localizedDescription)")
+            if !Task.isCancelled {
                 await MainActor.run {
                     searchResults = []
                     isSearching = false

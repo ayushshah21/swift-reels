@@ -793,36 +793,43 @@ class FirestoreManager: ObservableObject {
     
     /// Searches for videos based on title, trainer name, and workout type
     func searchVideos(query searchText: String, workoutType: WorkoutType? = nil) async throws -> [VideoModel] {
-        print("🔍 Searching videos with query: \(searchText), type: \(workoutType?.rawValue ?? "all")")
+        print("🔍 Searching videos with query: '\(searchText)', workoutType: \(String(describing: workoutType))")
         
-        // Create a base query
-        let baseQuery: Query = db.collection("videos")
+        // Create base query
+        var firestoreQuery = db.collection("videos").order(by: "createdAt", descending: true)
         
-        // Add workout type filter if specified
-        let filteredQuery = workoutType != nil && workoutType != .all
-            ? baseQuery.whereField("workout.type", isEqualTo: workoutType!.rawValue)
-            : baseQuery
-        
-        // Get all matching documents
-        // Note: Firestore doesn't support case-insensitive search or partial text search
-        // So we'll fetch documents and filter them client-side
-        let snapshot = try await filteredQuery.getDocuments()
-        
-        // Filter results client-side (case-insensitive)
-        let searchTerms = searchText.lowercased().split(separator: " ")
-        let videos = snapshot.documents.compactMap { document -> VideoModel? in
-            guard let video = VideoModel.fromFirestore(document) else { return nil }
-            
-            // Check if all search terms are present in either title or trainer name
-            let titleAndTrainer = "\(video.title) \(video.trainer)".lowercased()
-            let matchesAllTerms = searchTerms.allSatisfy { term in
-                titleAndTrainer.contains(term)
-            }
-            
-            return matchesAllTerms ? video : nil
+        // Apply workout type filter if specified
+        if let workoutType = workoutType, workoutType != .all {
+            firestoreQuery = firestoreQuery.whereField("workout.type", isEqualTo: workoutType.rawValue)
         }
         
-        print("✅ Found \(videos.count) matching videos")
-        return videos
+        // Get all videos that match the workout type (or all videos if no type specified)
+        let snapshot = try await firestoreQuery.getDocuments()
+        let allVideos = snapshot.documents.compactMap { VideoModel.fromFirestore($0) }
+        
+        // If search text is empty, return all videos
+        guard !searchText.isEmpty else {
+            return allVideos
+        }
+        
+        // Split the search text into terms and convert to lowercase for case-insensitive matching
+        let searchTerms = searchText.lowercased().split(separator: " ").map(String.init)
+        
+        // Filter videos based on search terms
+        let filteredVideos = allVideos.filter { video in
+            let titleLower = video.title.lowercased()
+            let trainerLower = video.trainer.lowercased()
+            
+            // Check if any search term is a prefix of any word in the title or trainer name
+            return searchTerms.allSatisfy { term in
+                titleLower.contains(term) || 
+                trainerLower.contains(term) ||
+                titleLower.split(separator: " ").contains { $0.hasPrefix(term) } ||
+                trainerLower.split(separator: " ").contains { $0.hasPrefix(term) }
+            }
+        }
+        
+        print("🎯 Found \(filteredVideos.count) matching videos")
+        return filteredVideos
     }
 } 
