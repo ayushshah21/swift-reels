@@ -51,29 +51,6 @@ struct ProfileView: View {
             
             Spacer()
             
-            // Debug Actions (only in debug builds)
-            #if DEBUG
-            VStack(spacing: 12) {
-                Button(action: {
-                    Task {
-                        do {
-                            try await firestoreManager.resetAllCommentCounts()
-                        } catch {
-                            print("❌ Error resetting comments: \(error.localizedDescription)")
-                        }
-                    }
-                }) {
-                    Text("Reset All Comment Counts")
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.orange)
-                        .cornerRadius(10)
-                }
-                .padding(.horizontal)
-            }
-            #endif
-            
             // Sign Out Button
             Button(action: {
                 authViewModel.signOut()
