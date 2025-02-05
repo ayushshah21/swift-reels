@@ -741,4 +741,51 @@ class FirestoreManager: ObservableObject {
         
         return savedVideos
     }
+    
+    /// Increments a user's post count
+    func incrementUserPostCount(userId: String) async throws {
+        let userRef = db.collection("users").document(userId)
+        try await userRef.updateData([
+            "postsCount": FieldValue.increment(Int64(1))
+        ])
+        print("✅ Incremented post count for user: \(userId)")
+    }
+    
+    /// Deletes a video and its associated storage file
+    func deleteVideo(_ videoId: String) async throws {
+        guard let userId = Auth.auth().currentUser?.uid else {
+            throw NSError(domain: "FirestoreManager", code: 3, userInfo: [NSLocalizedDescriptionKey: "User not authenticated"])
+        }
+        
+        // First get the video to verify ownership and get the URL
+        guard let video = try await getVideo(id: videoId) else {
+            throw NSError(domain: "FirestoreManager", code: 4, userInfo: [NSLocalizedDescriptionKey: "Video not found"])
+        }
+        
+        // Verify the user owns this video by checking against the trainer field
+        // In a production app, you'd want a proper owner field, but we're using trainer for now
+        guard let currentUser = try await getUser(id: userId),
+              currentUser.username == video.trainer else {
+            throw NSError(domain: "FirestoreManager", code: 5, userInfo: [NSLocalizedDescriptionKey: "Not authorized to delete this video"])
+        }
+        
+        // Delete from Storage first
+        try await StorageManager.shared.deleteVideo(url: video.videoURL)
+        
+        // If there's a thumbnail, delete that too
+        if let thumbnailURL = video.thumbnailURL {
+            try await StorageManager.shared.deleteThumbnail(url: thumbnailURL)
+        }
+        
+        // Delete the Firestore document and all subcollections
+        let document = try await db.collection("videos").document(videoId).getDocument()
+        try await deleteVideoWithSubcollections(document)
+        
+        // Decrement user's post count
+        try await db.collection("users").document(userId).updateData([
+            "postsCount": FieldValue.increment(Int64(-1))
+        ])
+        
+        print("✅ Successfully deleted video: \(videoId)")
+    }
 } 

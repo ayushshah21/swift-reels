@@ -1,7 +1,8 @@
 import Foundation
+import FirebaseFirestore
+import FirebaseAuth
 
 // Import WorkoutTypes to use its WorkoutDifficulty enum
-import FirebaseFirestore
 
 struct VideoModel: Identifiable, Equatable {
     let id: String
@@ -15,12 +16,13 @@ struct VideoModel: Identifiable, Equatable {
     var isBookmarked: Bool
     let trainer: String
     let createdAt: Date
+    let userId: String
     
     static func == (lhs: VideoModel, rhs: VideoModel) -> Bool {
         lhs.id == rhs.id
     }
     
-    init(id: String, title: String, videoURL: URL, thumbnailURL: URL?, duration: TimeInterval, workout: WorkoutMetadata, likeCount: Int, comments: Int, isBookmarked: Bool, trainer: String, createdAt: Date = Date()) {
+    init(id: String, title: String, videoURL: URL, thumbnailURL: URL?, duration: TimeInterval, workout: WorkoutMetadata, likeCount: Int, comments: Int, isBookmarked: Bool, trainer: String, createdAt: Date = Date(), userId: String = Auth.auth().currentUser?.uid ?? "") {
         self.id = id
         self.title = title
         self.videoURL = videoURL
@@ -32,6 +34,7 @@ struct VideoModel: Identifiable, Equatable {
         self.isBookmarked = isBookmarked
         self.trainer = trainer
         self.createdAt = createdAt
+        self.userId = userId
     }
     
     // MARK: - Firestore Conversion
@@ -48,7 +51,8 @@ struct VideoModel: Identifiable, Equatable {
             "comments": comments,
             "isBookmarked": isBookmarked,
             "trainer": trainer,
-            "createdAt": Timestamp(date: createdAt)
+            "createdAt": Timestamp(date: createdAt),
+            "userId": userId
         ]
     }
     
@@ -69,6 +73,9 @@ struct VideoModel: Identifiable, Equatable {
             print("   Data: \(data)")
             return nil
         }
+        
+        // Get userId with fallback to empty string
+        let userId = data["userId"] as? String ?? ""
         
         // Handle both 'likes' and 'likeCount' fields for backward compatibility
         let likeCount: Int
@@ -96,7 +103,8 @@ struct VideoModel: Identifiable, Equatable {
             comments: comments,
             isBookmarked: isBookmarked,
             trainer: trainer,
-            createdAt: createdAt
+            createdAt: createdAt,
+            userId: userId
         )
     }
     

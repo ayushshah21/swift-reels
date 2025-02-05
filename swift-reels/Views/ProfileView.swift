@@ -8,6 +8,7 @@ struct ProfileView: View {
     @State private var savedVideos: [VideoModel] = []
     @State private var isLoadingSaved = true
     @State private var showingSavedVideos = false
+    @State private var showingUploadSheet = false
     
     var body: some View {
         VStack(spacing: 20) {
@@ -69,6 +70,21 @@ struct ProfileView: View {
             }
             .padding(.horizontal)
             
+            // Upload Video Button
+            Button(action: { showingUploadSheet = true }) {
+                HStack {
+                    Image(systemName: "square.and.arrow.up")
+                    Text("Upload Workout")
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .foregroundColor(.gray)
+                }
+                .padding()
+                .background(Theme.card)
+                .cornerRadius(10)
+            }
+            .padding(.horizontal)
+            
             Spacer()
             
             // Sign Out Button
@@ -99,6 +115,9 @@ struct ProfileView: View {
         }
         .sheet(isPresented: $showingSavedVideos) {
             SavedVideosView(videos: savedVideos)
+        }
+        .sheet(isPresented: $showingUploadSheet) {
+            VideoUploadView()
         }
     }
 }

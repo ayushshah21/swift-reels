@@ -1,6 +1,7 @@
 import SwiftUI
 import AVKit
 import AVFoundation
+import FirebaseAuth
 
 @MainActor
 class VideoPlayerManager: ObservableObject {
@@ -120,17 +121,23 @@ class VideoPlayerManager: ObservableObject {
 
 struct ReelPlayerView: View {
     let video: VideoModel
+    @Environment(\.dismiss) private var dismiss
     @StateObject private var playerManager = VideoPlayerManager.shared
     @StateObject private var firestoreManager = FirestoreManager.shared
     @State private var player: AVPlayer?
     @State private var isPlaying = false
-    @State private var isBookmarked = false
-    @State private var showComments = false
     @State private var isLoading = true
-    @State private var showHeartAnimation = false
+    @State private var showComments = false
     @State private var isLiked = false
-    @State private var likeCount: Int
-    @State private var commentCount: Int
+    @State private var isBookmarked = false
+    @State private var likeCount = 0
+    @State private var commentCount = 0
+    @State private var showDeleteAlert = false
+    @State private var isOwner = false
+    @State private var errorMessage: String?
+    @State private var showHeartAnimation = false
+    @State private var showDeleteOptions = false
+    @GestureState private var isDetectingLongPress = false
     
     init(video: VideoModel) {
         self.video = video
@@ -145,6 +152,7 @@ struct ReelPlayerView: View {
             
             if let player = player {
                 CustomVideoPlayer(player: player)
+                    .edgesIgnoringSafeArea(.all)
                     .onTapGesture {
                         if isPlaying {
                             player.pause()
@@ -153,20 +161,76 @@ struct ReelPlayerView: View {
                         }
                         isPlaying.toggle()
                     }
+                    // Add long press gesture for delete option
+                    .simultaneousGesture(
+                        LongPressGesture(minimumDuration: 0.5)
+                            .updating($isDetectingLongPress) { currentState, gestureState, _ in
+                                gestureState = currentState
+                            }
+                            .onEnded { _ in
+                                if isOwner {
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                        showDeleteOptions = true
+                                    }
+                                }
+                            }
+                    )
                     // Add double tap gesture for liking
                     .onTapGesture(count: 2) {
                         handleLikeAction()
-                        // Add heart animation
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
                             showHeartAnimation = true
                         }
-                        // Hide heart after delay
                         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
                             withAnimation {
                                 showHeartAnimation = false
                             }
                         }
                     }
+            }
+            
+            // Delete Options Overlay
+            if showDeleteOptions {
+                Color.black.opacity(0.5)
+                    .edgesIgnoringSafeArea(.all)
+                    .transition(.opacity)
+                    .onTapGesture {
+                        withAnimation {
+                            showDeleteOptions = false
+                        }
+                    }
+                
+                VStack(spacing: 20) {
+                    Button(action: { showDeleteAlert = true }) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "trash.fill")
+                            Text("Delete Video")
+                        }
+                        .font(.title3)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.red)
+                        .cornerRadius(12)
+                    }
+                    
+                    Button(action: {
+                        withAnimation {
+                            showDeleteOptions = false
+                        }
+                    }) {
+                        Text("Cancel")
+                            .font(.title3)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.gray.opacity(0.5))
+                            .cornerRadius(12)
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 40)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
             }
             
             if isLoading {
@@ -189,9 +253,8 @@ struct ReelPlayerView: View {
             VStack {
                 Spacer()
                 
-                // Side Action Bar
+                // Video Info
                 HStack(alignment: .bottom) {
-                    // Video Info
                     VStack(alignment: .leading, spacing: 8) {
                         Text(video.title)
                             .font(.title3)
@@ -263,6 +326,23 @@ struct ReelPlayerView: View {
                 )
             }
         }
+        .alert("Delete Video", isPresented: $showDeleteAlert) {
+            Button("Delete", role: .destructive) {
+                deleteVideo()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Are you sure you want to delete this video? This action cannot be undone.")
+        }
+        .alert("Error", isPresented: .constant(errorMessage != nil), actions: {
+            Button("OK") {
+                errorMessage = nil
+            }
+        }, message: {
+            if let error = errorMessage {
+                Text(error)
+            }
+        })
         .task {
             isLoading = true
             // Initialize player when view appears
@@ -303,6 +383,14 @@ struct ReelPlayerView: View {
                 }
             } catch {
                 print("❌ Error checking video status: \(error.localizedDescription)")
+            }
+            
+            // Check if current user is the owner
+            if let currentUserId = Auth.auth().currentUser?.uid {
+                isOwner = currentUserId == video.userId
+                print("👤 Ownership check - Current userId: \(currentUserId), Video userId: \(video.userId), isOwner: \(isOwner)")
+            } else {
+                print("❌ Could not get current user ID for ownership check")
             }
         }
         .onDisappear {
@@ -360,6 +448,21 @@ struct ReelPlayerView: View {
                 }
             } catch {
                 print("❌ Error handling bookmark action: \(error.localizedDescription)")
+            }
+        }
+    }
+    
+    private func deleteVideo() {
+        Task {
+            do {
+                try await firestoreManager.deleteVideo(video.id)
+                // Instead of dismissing, let the parent view handle navigation
+                NotificationCenter.default.post(name: .init("VideoDeleted"), object: nil)
+            } catch {
+                print("❌ Error deleting video: \(error.localizedDescription)")
+                await MainActor.run {
+                    errorMessage = error.localizedDescription
+                }
             }
         }
     }
