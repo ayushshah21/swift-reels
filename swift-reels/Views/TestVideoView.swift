@@ -7,6 +7,7 @@ struct TestVideoView: View {
     @StateObject private var firestoreManager = FirestoreManager.shared
     @Environment(\.dismiss) private var dismiss
     @State private var currentSession: LiveSession?
+    @State private var streamHasEnded = false
     var joinSession: LiveSession?
     
     var body: some View {
@@ -21,83 +22,121 @@ struct TestVideoView: View {
                     .ignoresSafeArea()
             }
             
-            VStack {
-                HStack {
+            // Stream ended overlay
+            if streamHasEnded {
+                Color.black.opacity(0.85)
+                    .ignoresSafeArea()
+                
+                VStack(spacing: 20) {
+                    Image(systemName: "tv.slash")
+                        .font(.system(size: 50))
+                        .foregroundColor(.white)
+                    
+                    Text("Live Stream Has Ended")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                    
                     Button(action: {
-                        Task {
-                            if let session = currentSession {
-                                try? await firestoreManager.endLiveSession(session.id ?? "")
-                            }
-                            agoraManager.leaveChannel()
-                            dismiss()
-                        }
+                        dismiss()
                     }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.title)
+                        Text("Return to Feed")
+                            .fontWeight(.medium)
                             .foregroundColor(.white)
+                            .padding(.horizontal, 30)
+                            .padding(.vertical, 12)
+                            .background(Color.blue)
+                            .cornerRadius(8)
                     }
-                    .padding()
+                }
+            }
+            
+            // Regular controls overlay
+            if !streamHasEnded {
+                VStack {
+                    HStack {
+                        Button(action: {
+                            Task {
+                                if let session = currentSession {
+                                    try? await firestoreManager.endLiveSession(session.id ?? "")
+                                }
+                                agoraManager.leaveChannel()
+                                if joinSession != nil {
+                                    // We're an audience member, just dismiss
+                                    dismiss()
+                                } else {
+                                    // We're the broadcaster, mark stream as ended
+                                    streamHasEnded = true
+                                }
+                            }
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.title)
+                                .foregroundColor(.white)
+                        }
+                        .padding()
+                        
+                        Spacer()
+                        
+                        if joinSession == nil {
+                            Button(action: {
+                                agoraManager.switchCamera()
+                            }) {
+                                Image(systemName: "camera.rotate")
+                                    .font(.title)
+                                    .foregroundColor(.white)
+                            }
+                            .padding()
+                        }
+                    }
                     
                     Spacer()
                     
                     if joinSession == nil {
                         Button(action: {
-                            agoraManager.switchCamera()
-                        }) {
-                            Image(systemName: "camera.rotate")
-                                .font(.title)
-                                .foregroundColor(.white)
-                        }
-                        .padding()
-                    }
-                }
-                
-                Spacer()
-                
-                if joinSession == nil {
-                    Button(action: {
-                        Task {
-                            if currentSession == nil {
-                                // Start new live session
-                                if let userId = Auth.auth().currentUser?.uid,
-                                   let userEmail = Auth.auth().currentUser?.email {
-                                    let channelName = "test_channel_\(Int(Date().timeIntervalSince1970))"
-                                    print("🎥 Creating live session for host: \(userEmail)")
-                                    
-                                    do {
-                                        let session = try await firestoreManager.createLiveSession(
-                                            hostId: userId,
-                                            hostName: userEmail,
-                                            channelId: channelName
-                                        )
-                                        currentSession = session
-                                        print("✅ Created live session: \(session.id ?? "")")
+                            Task {
+                                if currentSession == nil {
+                                    // Start new live session
+                                    if let userId = Auth.auth().currentUser?.uid,
+                                       let userEmail = Auth.auth().currentUser?.email {
+                                        let channelName = "test_channel_\(Int(Date().timeIntervalSince1970))"
+                                        print("🎥 Creating live session for host: \(userEmail)")
                                         
-                                        // Small delay to ensure view is ready
-                                        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 second
-                                        print("Joining channel as broadcaster")
-                                        await agoraManager.joinChannel(channelName)
-                                    } catch {
-                                        print("❌ Error creating live session: \(error.localizedDescription)")
+                                        do {
+                                            let session = try await firestoreManager.createLiveSession(
+                                                hostId: userId,
+                                                hostName: userEmail,
+                                                channelId: channelName
+                                            )
+                                            currentSession = session
+                                            print("✅ Created live session: \(session.id ?? "")")
+                                            
+                                            // Small delay to ensure view is ready
+                                            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 second
+                                            print("Joining channel as broadcaster")
+                                            await agoraManager.joinChannel(channelName)
+                                        } catch {
+                                            print("❌ Error creating live session: \(error.localizedDescription)")
+                                        }
                                     }
+                                } else {
+                                    // End live session
+                                    if let session = currentSession {
+                                        try? await firestoreManager.endLiveSession(session.id ?? "")
+                                    }
+                                    agoraManager.leaveChannel()
+                                    streamHasEnded = true
                                 }
-                            } else {
-                                // End live session
-                                if let session = currentSession {
-                                    try? await firestoreManager.endLiveSession(session.id ?? "")
-                                }
-                                agoraManager.leaveChannel()
-                                currentSession = nil
                             }
+                        }) {
+                            Text(currentSession == nil ? "Go Live" : "End Stream")
+                                .foregroundColor(.white)
+                                .padding()
+                                .background(currentSession == nil ? Color.blue : Color.red)
+                                .cornerRadius(8)
                         }
-                    }) {
-                        Text(currentSession == nil ? "Go Live" : "End Stream")
-                            .foregroundColor(.white)
-                            .padding()
-                            .background(currentSession == nil ? Color.blue : Color.red)
-                            .cornerRadius(8)
+                        .padding(.bottom, 50)
                     }
-                    .padding(.bottom, 50)
                 }
             }
         }
@@ -107,6 +146,9 @@ struct TestVideoView: View {
                     print("Setting up for joining session")
                     agoraManager.setRole(.audience)
                     currentSession = session
+                    
+                    // Start listening for session status
+                    listenToSessionStatus(session)
                     
                     // Small delay to ensure view is ready
                     try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 second
@@ -120,6 +162,19 @@ struct TestVideoView: View {
         }
         .onDisappear {
             agoraManager.leaveChannel()
+        }
+    }
+    
+    private func listenToSessionStatus(_ session: LiveSession) {
+        // Add a listener for the session's active status
+        Task {
+            for try await updatedSession in firestoreManager.liveSessionUpdates(sessionId: session.id ?? "") {
+                if !updatedSession.isActive {
+                    // Stream has ended
+                    streamHasEnded = true
+                    agoraManager.leaveChannel()
+                }
+            }
         }
     }
 }

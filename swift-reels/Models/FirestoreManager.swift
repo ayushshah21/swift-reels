@@ -832,4 +832,76 @@ class FirestoreManager: ObservableObject {
         print("🎯 Found \(filteredVideos.count) matching videos")
         return filteredVideos
     }
+    
+    // MARK: - Live Session Operations
+    
+    /// Creates a new live session
+    func createLiveSession(hostId: String, hostName: String, channelId: String) async throws -> LiveSession {
+        print("🎥 Creating live session for host: \(hostName)")
+        
+        let session = LiveSession(
+            hostId: hostId,
+            hostName: hostName,
+            channelId: channelId,
+            isActive: true,
+            createdAt: Date(),
+            viewerCount: 0,
+            viewers: []
+        )
+        
+        let docRef = try await db.collection("liveSessions").addDocument(data: session.toFirestore())
+        var createdSession = session
+        createdSession.id = docRef.documentID
+        print("✅ Created live session: \(docRef.documentID)")
+        return createdSession
+    }
+    
+    /// Ends a live session
+    func endLiveSession(_ sessionId: String) async throws {
+        print("🎥 Ending live session: \(sessionId)")
+        try await db.collection("liveSessions").document(sessionId).updateData([
+            "isActive": false
+        ])
+        print("✅ Ended live session: \(sessionId)")
+    }
+    
+    /// Gets all active live sessions
+    func getActiveLiveSessions() async throws -> [LiveSession] {
+        print("🔍 Fetching active live sessions...")
+        let snapshot = try await db.collection("liveSessions")
+            .whereField("isActive", isEqualTo: true)
+            .getDocuments()
+        
+        print("📄 Raw documents found: \(snapshot.documents.count)")
+        for doc in snapshot.documents {
+            print("   Document ID: \(doc.documentID)")
+            print("   Data: \(doc.data())")
+        }
+        
+        let sessions = snapshot.documents.compactMap { LiveSession.fromFirestore($0) }
+        print("✅ Found \(sessions.count) active sessions")
+        return sessions
+    }
+    
+    /// Provides real-time updates for a live session
+    func liveSessionUpdates(sessionId: String) -> AsyncStream<LiveSession> {
+        AsyncStream { continuation in
+            let listener = db.collection("liveSessions").document(sessionId)
+                .addSnapshotListener { documentSnapshot, error in
+                    guard let document = documentSnapshot else {
+                        print("❌ Error fetching live session updates: \(error?.localizedDescription ?? "Unknown error")")
+                        return
+                    }
+                    
+                    if let session = LiveSession.fromFirestore(document) {
+                        continuation.yield(session)
+                    }
+                }
+            
+            // Store listener reference to prevent it from being deallocated
+            continuation.onTermination = { @Sendable _ in
+                listener.remove()
+            }
+        }
+    }
 } 
