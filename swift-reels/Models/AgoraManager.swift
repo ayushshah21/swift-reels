@@ -15,6 +15,8 @@ class AgoraManager: NSObject, ObservableObject {
     @Published var isInChannel = false
     @Published var currentChannelName: String?
     @Published var currentRole: AgoraClientRole = .broadcaster
+    @Published var isLocalAudioEnabled = true
+    @Published var isRemoteAudioEnabled = true
     
     private var localVideoCanvas: AgoraRtcVideoCanvas?
     private var remoteVideoCanvas: AgoraRtcVideoCanvas?
@@ -101,6 +103,7 @@ class AgoraManager: NSObject, ObservableObject {
         canvas.view = view
         canvas.renderMode = .hidden
         canvas.uid = 0  // Use 0 for local user
+        canvas.mirrorMode = .enabled  // Mirror for local preview only
         engine.setupLocalVideo(canvas)
         
         // Start preview if broadcaster
@@ -137,6 +140,7 @@ class AgoraManager: NSObject, ObservableObject {
         canvas.uid = uid
         canvas.view = view
         canvas.renderMode = .hidden
+        canvas.mirrorMode = .disabled  // Disable mirroring for remote view
         
         print("   Setting up new remote canvas...")
         engine.setupRemoteVideo(canvas)
@@ -272,6 +276,20 @@ class AgoraManager: NSObject, ObservableObject {
         }
         
         attemptSetup()
+    }
+    
+    func toggleLocalAudio() {
+        guard let engine = engine else { return }
+        isLocalAudioEnabled.toggle()
+        engine.muteLocalAudioStream(!isLocalAudioEnabled)
+        print("🎤 Local audio \(isLocalAudioEnabled ? "enabled" : "disabled")")
+    }
+    
+    func toggleRemoteAudio() {
+        guard let engine = engine else { return }
+        isRemoteAudioEnabled.toggle()
+        engine.muteAllRemoteAudioStreams(!isRemoteAudioEnabled)
+        print("🔊 Remote audio \(isRemoteAudioEnabled ? "enabled" : "disabled")")
     }
 }
 

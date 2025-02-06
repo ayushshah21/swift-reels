@@ -48,4 +48,51 @@ struct LiveSession: Identifiable, Codable {
             viewers: data["viewers"] as? [String] ?? []
         )
     }
+}
+
+struct PartnerSession: Codable, Identifiable {
+    var id: String?
+    let hostId: String
+    let partnerId: String?
+    let channelId: String
+    var isActive: Bool
+    var createdAt: Date
+    var status: SessionStatus
+    var workoutType: WorkoutType
+    var durationMinutes: Int
+    
+    enum SessionStatus: String, Codable {
+        case waiting     // Host waiting for partner
+        case inProgress // Both users connected
+        case ended      // Session ended
+    }
+    
+    func toFirestore() -> [String: Any] {
+        return [
+            "hostId": hostId,
+            "partnerId": partnerId as Any,
+            "channelId": channelId,
+            "isActive": isActive,
+            "createdAt": createdAt,
+            "status": status.rawValue,
+            "workoutType": workoutType.rawValue,
+            "durationMinutes": durationMinutes
+        ]
+    }
+    
+    static func fromFirestore(_ document: DocumentSnapshot) -> PartnerSession? {
+        guard let data = document.data() else { return nil }
+        
+        return PartnerSession(
+            id: document.documentID,
+            hostId: data["hostId"] as? String ?? "",
+            partnerId: data["partnerId"] as? String,
+            channelId: data["channelId"] as? String ?? "",
+            isActive: data["isActive"] as? Bool ?? false,
+            createdAt: (data["createdAt"] as? Timestamp)?.dateValue() ?? Date(),
+            status: SessionStatus(rawValue: data["status"] as? String ?? "waiting") ?? .waiting,
+            workoutType: WorkoutType(rawValue: data["workoutType"] as? String ?? "") ?? .other,
+            durationMinutes: data["durationMinutes"] as? Int ?? 30
+        )
+    }
 } 

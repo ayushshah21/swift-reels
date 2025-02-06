@@ -13,8 +13,14 @@ struct User: Identifiable, Codable {
     var followingCount: Int
     var savedVideos: [String]  // Array of video IDs
     var createdAt: Date
+    var totalRatings: Int = 0
+    var ratingSum: Int = 0
     
-    init(id: String, email: String, username: String? = nil, profileImageURL: URL? = nil, postsCount: Int = 0, followersCount: Int = 0, followingCount: Int = 0, savedVideos: [String] = [], createdAt: Date = Date()) {
+    var averageRating: Double {
+        totalRatings > 0 ? Double(ratingSum) / Double(totalRatings) : 0
+    }
+    
+    init(id: String, email: String, username: String? = nil, profileImageURL: URL? = nil, postsCount: Int = 0, followersCount: Int = 0, followingCount: Int = 0, savedVideos: [String] = [], createdAt: Date = Date(), totalRatings: Int = 0, ratingSum: Int = 0) {
         self.id = id
         self.email = email
         // Generate username from email if none provided
@@ -30,6 +36,8 @@ struct User: Identifiable, Codable {
         self.followingCount = followingCount
         self.savedVideos = savedVideos
         self.createdAt = createdAt
+        self.totalRatings = totalRatings
+        self.ratingSum = ratingSum
     }
     
     enum CodingKeys: String, CodingKey {
@@ -43,6 +51,8 @@ struct User: Identifiable, Codable {
         case followingCount
         case savedVideos
         case createdAt
+        case totalRatings
+        case ratingSum
     }
     
     // Convert Firestore document to User
@@ -62,6 +72,9 @@ struct User: Identifiable, Codable {
         let profileImageURLString = data["profileImageURL"] as? String
         let profileImageURL = profileImageURLString.flatMap { URL(string: $0) }
         
+        let totalRatings = data["totalRatings"] as? Int ?? 0
+        let ratingSum = data["ratingSum"] as? Int ?? 0
+        
         return User(
             id: document.documentID,
             email: email,
@@ -71,7 +84,9 @@ struct User: Identifiable, Codable {
             followersCount: followersCount,
             followingCount: followingCount,
             savedVideos: savedVideos,
-            createdAt: createdAt
+            createdAt: createdAt,
+            totalRatings: totalRatings,
+            ratingSum: ratingSum
         )
     }
     
@@ -85,7 +100,9 @@ struct User: Identifiable, Codable {
             "followersCount": followersCount,
             "followingCount": followingCount,
             "savedVideos": savedVideos,
-            "createdAt": Timestamp(date: createdAt)
+            "createdAt": Timestamp(date: createdAt),
+            "totalRatings": totalRatings,
+            "ratingSum": ratingSum
         ]
         
         // Only include profileImageURL if it exists

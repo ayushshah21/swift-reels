@@ -43,16 +43,16 @@ struct ContentView: View {
                     }
                     .tag(2)
                     
-                    // Center upload button - just a placeholder view
-                    Color.clear
-                        .tabItem {
-                            VStack {
-                                Image(systemName: "plus.square.fill")
-                                    .environment(\.symbolVariants, .none)
-                                Text("Upload")
-                            }
+                    NavigationStack {
+                        PartnerSessionsView()
+                    }
+                    .tabItem {
+                        VStack {
+                            Image(systemName: "figure.2.arms.open")
+                            Text("Partners")
                         }
-                        .tag(3)
+                    }
+                    .tag(3)
                     
                     ProfileView()
                         .tabItem {
@@ -64,15 +64,6 @@ struct ContentView: View {
                         .tag(4)
                 }
                 .tint(.primary)
-                .onChange(of: selectedTab) { newValue in
-                    if newValue == 3 {
-                        // Store current tab before showing upload sheet
-                        previousTab = selectedTab
-                        // Show upload sheet and return to previous tab
-                        showUploadSheet = true
-                        selectedTab = previousTab
-                    }
-                }
                 .sheet(isPresented: $showUploadSheet) {
                     VideoUploadView()
                 }

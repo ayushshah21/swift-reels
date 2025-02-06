@@ -92,6 +92,10 @@ struct TestVideoView: View {
                     
                     Spacer()
                     
+                    // Audio Controls
+                    AudioControlsView(isBroadcaster: joinSession == nil)
+                        .padding(.bottom, 30)
+                    
                     if joinSession == nil {
                         Button(action: {
                             Task {
@@ -174,6 +178,41 @@ struct TestVideoView: View {
                     streamHasEnded = true
                     agoraManager.leaveChannel()
                 }
+            }
+        }
+    }
+}
+
+struct AudioControlsView: View {
+    @StateObject private var agoraManager = AgoraManager.shared
+    let isBroadcaster: Bool
+    
+    var body: some View {
+        HStack(spacing: 20) {
+            if isBroadcaster {
+                // Microphone control for broadcaster
+                Button(action: {
+                    agoraManager.toggleLocalAudio()
+                }) {
+                    Image(systemName: agoraManager.isLocalAudioEnabled ? "mic.fill" : "mic.slash.fill")
+                        .font(.title2)
+                        .foregroundColor(agoraManager.isLocalAudioEnabled ? .white : .red)
+                        .padding(12)
+                        .background(Color.black.opacity(0.6))
+                        .clipShape(Circle())
+                }
+            }
+            
+            // Speaker control for everyone
+            Button(action: {
+                agoraManager.toggleRemoteAudio()
+            }) {
+                Image(systemName: agoraManager.isRemoteAudioEnabled ? "speaker.wave.2.fill" : "speaker.slash.fill")
+                    .font(.title2)
+                    .foregroundColor(agoraManager.isRemoteAudioEnabled ? .white : .red)
+                    .padding(12)
+                    .background(Color.black.opacity(0.6))
+                    .clipShape(Circle())
             }
         }
     }

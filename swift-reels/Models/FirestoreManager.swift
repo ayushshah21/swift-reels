@@ -904,4 +904,126 @@ class FirestoreManager: ObservableObject {
             }
         }
     }
+    
+    // MARK: - Partner Session Operations
+    
+    /// Creates a new partner workout session
+    func createPartnerSession(hostId: String, workoutType: WorkoutType, durationMinutes: Int) async throws -> PartnerSession {
+        print("🤝 Creating partner session for host: \(hostId)")
+        
+        let channelId = "partner_\(UUID().uuidString)"
+        let session = PartnerSession(
+            id: nil,
+            hostId: hostId,
+            partnerId: nil,
+            channelId: channelId,
+            isActive: true,
+            createdAt: Date(),
+            status: .waiting,
+            workoutType: workoutType,
+            durationMinutes: durationMinutes
+        )
+        
+        let docRef = try await db.collection("partnerSessions").addDocument(data: session.toFirestore())
+        var createdSession = session
+        createdSession.id = docRef.documentID
+        print("✅ Created partner session: \(docRef.documentID)")
+        return createdSession
+    }
+    
+    /// Joins an existing partner session
+    func joinPartnerSession(_ sessionId: String, partnerId: String) async throws {
+        print("🤝 Joining partner session: \(sessionId)")
+        
+        try await db.collection("partnerSessions").document(sessionId).updateData([
+            "partnerId": partnerId,
+            "status": PartnerSession.SessionStatus.inProgress.rawValue
+        ])
+        print("✅ Joined partner session: \(sessionId)")
+    }
+    
+    /// Ends a partner session
+    func endPartnerSession(_ sessionId: String) async throws {
+        print("👋 Ending partner session: \(sessionId)")
+        
+        try await db.collection("partnerSessions").document(sessionId).updateData([
+            "isActive": false,
+            "status": PartnerSession.SessionStatus.ended.rawValue
+        ])
+        print("✅ Ended partner session: \(sessionId)")
+    }
+    
+    /// Gets all available partner sessions
+    func getAvailablePartnerSessions() async throws -> [PartnerSession] {
+        print("🔍 Fetching available partner sessions...")
+        
+        let snapshot = try await db.collection("partnerSessions")
+            .whereField("isActive", isEqualTo: true)
+            .whereField("status", isEqualTo: PartnerSession.SessionStatus.waiting.rawValue)
+            .getDocuments()
+        
+        let sessions = snapshot.documents.compactMap { PartnerSession.fromFirestore($0) }
+        print("✅ Found \(sessions.count) available sessions")
+        return sessions
+    }
+    
+    /// Gets a specific partner session
+    func getPartnerSession(id: String) async throws -> PartnerSession? {
+        let doc = try await db.collection("partnerSessions").document(id).getDocument()
+        return PartnerSession.fromFirestore(doc)
+    }
+    
+    /// Provides real-time updates for a partner session
+    func partnerSessionUpdates(sessionId: String) -> AsyncStream<PartnerSession> {
+        AsyncStream { continuation in
+            let listener = db.collection("partnerSessions").document(sessionId)
+                .addSnapshotListener { documentSnapshot, error in
+                    guard let document = documentSnapshot else {
+                        print("❌ Error fetching partner session updates: \(error?.localizedDescription ?? "Unknown error")")
+                        return
+                    }
+                    
+                    if let session = PartnerSession.fromFirestore(document) {
+                        continuation.yield(session)
+                    }
+                }
+            
+            continuation.onTermination = { @Sendable _ in
+                listener.remove()
+            }
+        }
+    }
+    
+    // MARK: - User Ratings
+    
+    /// Submits a rating for a user after a partner workout
+    func submitUserRating(userId: String, rating: Int) async throws {
+        print("⭐️ Submitting rating \(rating) for user: \(userId)")
+        
+        let userRef = db.collection("users").document(userId)
+        
+        try await db.runTransaction({ (transaction, errorPointer) -> Any? in
+            let userDoc: DocumentSnapshot
+            do {
+                userDoc = try transaction.getDocument(userRef)
+            } catch let fetchError as NSError {
+                errorPointer?.pointee = fetchError
+                return nil
+            }
+            
+            // Get current rating data
+            let currentTotal = userDoc.data()?["totalRatings"] as? Int ?? 0
+            let currentSum = userDoc.data()?["ratingSum"] as? Int ?? 0
+            
+            // Update rating data
+            transaction.updateData([
+                "totalRatings": currentTotal + 1,
+                "ratingSum": currentSum + rating
+            ], forDocument: userRef)
+            
+            return nil
+        })
+        
+        print("✅ Rating submitted successfully")
+    }
 } 

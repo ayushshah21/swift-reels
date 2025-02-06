@@ -13,6 +13,7 @@ struct ProfileView: View {
     @State private var selectedImage: PhotosPickerItem?
     @State private var profileImage: UIImage?
     @State private var isUploadingImage = false
+    @State private var showUploadSheet = false
     
     private let darkBackground = Color(UIColor.systemBackground)
     private let cardBackground = Color(UIColor.secondarySystemBackground).opacity(0.7)
@@ -121,6 +122,24 @@ struct ProfileView: View {
                         .foregroundColor(.primary)
                         .padding(.horizontal)
                         
+                        // Upload Button
+                        Button(action: { showingImagePicker = false; showUploadSheet = true }) {
+                            HStack {
+                                Image(systemName: "arrow.up.circle.fill")
+                                    .font(.title3)
+                                Text("Upload Workout")
+                                    .fontWeight(.medium)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .foregroundColor(.gray)
+                            }
+                            .padding()
+                            .background(cardBackground)
+                            .cornerRadius(15)
+                        }
+                        .foregroundColor(.primary)
+                        .padding(.horizontal)
+                        
                         Spacer()
                         
                         // Sign Out Button
@@ -165,6 +184,9 @@ struct ProfileView: View {
             }
             .sheet(isPresented: $showingSavedVideos) {
                 SavedVideosView(videos: savedVideos)
+            }
+            .sheet(isPresented: $showUploadSheet) {
+                VideoUploadView()
             }
         }
     }
