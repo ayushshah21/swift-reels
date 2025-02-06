@@ -88,3 +88,6 @@ fastlane/test_output
 
 iOSInjectionProject/ 
 *.env
+Config.swift
+swift-reels/Models/Config.swift
+swift-reels/Models/Secrets.swift

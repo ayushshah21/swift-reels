@@ -9,115 +9,145 @@ struct ProfileView: View {
     @State private var isLoadingSaved = true
     @State private var showingSavedVideos = false
     @State private var showingUploadSheet = false
+    @State private var showTestVideo = false
     
     var body: some View {
-        VStack(spacing: 20) {
-            // Profile Header
-            VStack(spacing: 8) {
-                Image(systemName: "person.circle.fill")
-                    .resizable()
-                    .frame(width: 80, height: 80)
-                    .foregroundColor(.gray)
-                
-                Text(currentUser?.username ?? Auth.auth().currentUser?.email ?? "User")
-                    .font(.title2)
-                    .fontWeight(.medium)
-            }
-            .padding(.top, 32)
-            
-            // Stats
-            HStack(spacing: 40) {
-                VStack {
-                    Text("\(currentUser?.postsCount ?? 0)")
+        NavigationStack {
+            VStack(spacing: 20) {
+                // Profile Header
+                VStack(spacing: 8) {
+                    Image(systemName: "person.circle.fill")
+                        .resizable()
+                        .frame(width: 80, height: 80)
+                        .foregroundColor(.gray)
+                    
+                    Text(currentUser?.username ?? Auth.auth().currentUser?.email ?? "User")
                         .font(.title2)
-                        .fontWeight(.bold)
-                    Text("Posts")
-                        .foregroundColor(.gray)
+                        .fontWeight(.medium)
                 }
+                .padding(.top, 32)
                 
-                VStack {
-                    Text("\(currentUser?.followersCount ?? 0)")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                    Text("Followers")
-                        .foregroundColor(.gray)
+                // Stats
+                HStack(spacing: 40) {
+                    VStack {
+                        Text("\(currentUser?.postsCount ?? 0)")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                        Text("Posts")
+                            .foregroundColor(.gray)
+                    }
+                    
+                    VStack {
+                        Text("\(currentUser?.followersCount ?? 0)")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                        Text("Followers")
+                            .foregroundColor(.gray)
+                    }
+                    
+                    VStack {
+                        Text("\(savedVideos.count)")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                        Text("Saved")
+                            .foregroundColor(.gray)
+                    }
                 }
+                .padding(.vertical)
                 
-                VStack {
-                    Text("\(savedVideos.count)")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                    Text("Saved")
-                        .foregroundColor(.gray)
-                }
-            }
-            .padding(.vertical)
-            
-            // Saved Videos Button
-            Button(action: { showingSavedVideos = true }) {
-                HStack {
-                    Image(systemName: "bookmark.fill")
-                    Text("Saved Workouts")
-                    Spacer()
-                    Text("\(savedVideos.count)")
-                        .foregroundColor(.gray)
-                    Image(systemName: "chevron.right")
-                        .foregroundColor(.gray)
-                }
-                .padding()
-                .background(Theme.card)
-                .cornerRadius(10)
-            }
-            .padding(.horizontal)
-            
-            // Upload Video Button
-            Button(action: { showingUploadSheet = true }) {
-                HStack {
-                    Image(systemName: "square.and.arrow.up")
-                    Text("Upload Workout")
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .foregroundColor(.gray)
-                }
-                .padding()
-                .background(Theme.card)
-                .cornerRadius(10)
-            }
-            .padding(.horizontal)
-            
-            Spacer()
-            
-            // Sign Out Button
-            Button(action: {
-                authViewModel.signOut()
-            }) {
-                Text("Sign Out")
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
+                // Saved Videos Button
+                Button(action: { showingSavedVideos = true }) {
+                    HStack {
+                        Image(systemName: "bookmark.fill")
+                        Text("Saved Workouts")
+                        Spacer()
+                        Text("\(savedVideos.count)")
+                            .foregroundColor(.gray)
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(.gray)
+                    }
                     .padding()
-                    .background(Color.red)
+                    .background(Theme.card)
                     .cornerRadius(10)
+                }
+                .padding(.horizontal)
+                
+                // Upload Video Button
+                Button(action: { showingUploadSheet = true }) {
+                    HStack {
+                        Image(systemName: "square.and.arrow.up")
+                        Text("Upload Workout")
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(.gray)
+                    }
+                    .padding()
+                    .background(Theme.card)
+                    .cornerRadius(10)
+                }
+                .padding(.horizontal)
+                
+                // Live Sessions Button
+                NavigationLink(destination: LiveSessionsView()) {
+                    HStack {
+                        Image(systemName: "video.fill")
+                        Text("Live Sessions")
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(.gray)
+                    }
+                    .padding()
+                    .background(Theme.card)
+                    .cornerRadius(10)
+                }
+                .padding(.horizontal)
+                
+                Spacer()
+                
+                // Sign Out Button
+                Button(action: {
+                    authViewModel.signOut()
+                }) {
+                    Text("Sign Out")
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.red)
+                        .cornerRadius(10)
+                }
+                .padding(.horizontal)
+                .padding(.bottom, 20)
+                
+                // Test Video Button
+                Button("Test Live Stream Camera") {
+                    showTestVideo = true
+                }
+                .padding()
+                .background(Color.blue)
+                .foregroundColor(.white)
+                .cornerRadius(8)
             }
-            .padding(.horizontal)
-            .padding(.bottom, 20)
-        }
-        .task {
-            if let authUser = Auth.auth().currentUser {
-                do {
-                    currentUser = try await firestoreManager.getUser(id: authUser.uid)
-                    savedVideos = try await firestoreManager.getSavedVideos()
-                    isLoadingSaved = false
-                } catch {
-                    print("❌ Error fetching user data: \(error.localizedDescription)")
-                    isLoadingSaved = false
+            .task {
+                if let authUser = Auth.auth().currentUser {
+                    do {
+                        currentUser = try await firestoreManager.getUser(id: authUser.uid)
+                        savedVideos = try await firestoreManager.getSavedVideos()
+                        isLoadingSaved = false
+                    } catch {
+                        print("❌ Error fetching user data: \(error.localizedDescription)")
+                        isLoadingSaved = false
+                    }
                 }
             }
-        }
-        .sheet(isPresented: $showingSavedVideos) {
-            SavedVideosView(videos: savedVideos)
-        }
-        .sheet(isPresented: $showingUploadSheet) {
-            VideoUploadView()
+            .sheet(isPresented: $showingSavedVideos) {
+                SavedVideosView(videos: savedVideos)
+            }
+            .sheet(isPresented: $showingUploadSheet) {
+                VideoUploadView()
+            }
+            .sheet(isPresented: $showTestVideo) {
+                TestVideoView()
+            }
         }
     }
 }

@@ -29,6 +29,8 @@ class VideoPlayerManager: ObservableObject {
         
         if let existingPlayer = playerCache[urlString] {
             currentPlayingURL = urlString
+            // Reset player state
+            await existingPlayer.seek(to: .zero)
             return existingPlayer
         }
         
@@ -54,6 +56,11 @@ class VideoPlayerManager: ObservableObject {
             let playerItem = AVPlayerItem(asset: asset)
             let player = AVPlayer(playerItem: playerItem)
             player.automaticallyWaitsToMinimizeStalling = true
+            
+            // Set up audio session
+            try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .moviePlayback)
+            try? AVAudioSession.sharedInstance().setActive(true)
+            
             playerCache[urlString] = player
             currentPlayingURL = urlString
             return player
@@ -99,13 +106,18 @@ class VideoPlayerManager: ObservableObject {
         stopAudio(for: url)
         playerCache.removeValue(forKey: urlString)
         assetCache.removeValue(forKey: urlString)
+        if currentPlayingURL == urlString {
+            currentPlayingURL = nil
+        }
     }
     
     func stopAudio(for url: URL) {
         let urlString = url.absoluteString
         if let player = playerCache[urlString] {
             player.pause()
-            player.seek(to: .zero)
+            Task {
+                await player.seek(to: .zero)
+            }
             if currentPlayingURL == urlString {
                 currentPlayingURL = nil
             }
@@ -121,10 +133,23 @@ class VideoPlayerManager: ObservableObject {
             let keysToRemove = sortedKeys[..<(sortedKeys.count - maxCacheSize)]
             keysToRemove.forEach { key in
                 assetCache.removeValue(forKey: key)
+                if let player = playerCache[key] {
+                    player.pause()
+                }
                 playerCache.removeValue(forKey: key)
                 print("🗑️ Removed cached asset: \(key)")
             }
         }
+    }
+    
+    func stopAllPlayback() {
+        playerCache.values.forEach { player in
+            player.pause()
+            Task {
+                await player.seek(to: .zero)
+            }
+        }
+        currentPlayingURL = nil
     }
 }
 
@@ -177,6 +202,20 @@ struct ReelPlayerView: View {
                             player.play()
                         }
                         isPlaying.toggle()
+                    }
+                    .onAppear {
+                        // Ensure clean state when view appears
+                        playerManager.stopAllPlayback()
+                        player.seek(to: .zero)
+                        player.play()
+                        isPlaying = true
+                    }
+                    .onDisappear {
+                        // Ensure cleanup when view disappears
+                        player.pause()
+                        player.seek(to: .zero)
+                        playerManager.stopAudio(for: video.videoURL)
+                        isPlaying = false
                     }
                     // Add long press gesture for delete option
                     .simultaneousGesture(
@@ -368,6 +407,9 @@ struct ReelPlayerView: View {
             player.actionAtItemEnd = .none
             player.isMuted = false
             
+            // Remove any existing observers before adding new one
+            NotificationCenter.default.removeObserver(self)
+            
             // Add observer for video end
             NotificationCenter.default.addObserver(
                 forName: .AVPlayerItemDidPlayToEndTime,
@@ -377,6 +419,36 @@ struct ReelPlayerView: View {
                 Task {
                     await player.seek(to: .zero)
                     player.play()
+                }
+            }
+            
+            // Add observer for interruptions
+            NotificationCenter.default.addObserver(
+                forName: AVAudioSession.interruptionNotification,
+                object: nil,
+                queue: .main
+            ) { notification in
+                guard let userInfo = notification.userInfo,
+                      let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
+                      let type = AVAudioSession.InterruptionType(rawValue: typeValue) else {
+                    return
+                }
+                
+                switch type {
+                case .began:
+                    // Audio interrupted, pause playback
+                    player.pause()
+                    isPlaying = false
+                case .ended:
+                    guard let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt else { return }
+                    let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
+                    if options.contains(.shouldResume) {
+                        // Interruption ended, resume playback
+                        player.play()
+                        isPlaying = true
+                    }
+                @unknown default:
+                    break
                 }
             }
             
@@ -412,6 +484,7 @@ struct ReelPlayerView: View {
             }
         }
         .onDisappear {
+            // Cleanup when view disappears
             if let player = player {
                 player.pause()
                 Task {
@@ -419,6 +492,8 @@ struct ReelPlayerView: View {
                     playerManager.stopAudio(for: video.videoURL)
                 }
             }
+            // Remove all observers
+            NotificationCenter.default.removeObserver(self)
         }
         .sheet(isPresented: $showComments) {
             NavigationStack {

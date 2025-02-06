@@ -3,6 +3,7 @@ import SwiftUI
 struct ContentView: View {
     @StateObject private var authViewModel = AuthViewModel()
     @StateObject private var firestoreManager = FirestoreManager.shared
+    @StateObject private var agoraManager = AgoraManager.shared
     
     var body: some View {
         Group {
@@ -32,6 +33,11 @@ struct ContentView: View {
         .environmentObject(authViewModel)
         .onAppear {
             print("🔄 ContentView appeared, authViewModel initialized")
+            if agoraManager.isInitialized {
+                print("✅ Agora SDK initialized successfully")
+            } else if let error = agoraManager.error {
+                print("❌ Agora SDK initialization failed: \(error)")
+            }
         }
     }
 } 

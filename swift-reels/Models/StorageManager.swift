@@ -5,7 +5,7 @@ import FirebaseStorage
 class StorageManager: ObservableObject {
     static let shared = StorageManager()
     private let storage = Storage.storage()
-    private let pexelsApiKey = "9T5wxzEODLZlNGGURusrPeHtHUnCCM0eAaQQfEh5EU5hoQtUqG9CAuqm"
+    private let pexelsApiKey = APIConfig.pexelsApiKey 
     
     private init() {}
     
