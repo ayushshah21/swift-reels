@@ -6,7 +6,7 @@ struct User: Identifiable, Codable {
     let id: String  // Firebase Auth UID
     let email: String
     var username: String
-    var profilePicUrl: String?
+    var profileImageURL: URL?  // New property for profile image
     var bio: String?
     var postsCount: Int
     var followersCount: Int
@@ -14,7 +14,7 @@ struct User: Identifiable, Codable {
     var savedVideos: [String]  // Array of video IDs
     var createdAt: Date
     
-    init(id: String, email: String, username: String? = nil, postsCount: Int = 0, followersCount: Int = 0, followingCount: Int = 0, savedVideos: [String] = [], createdAt: Date = Date()) {
+    init(id: String, email: String, username: String? = nil, profileImageURL: URL? = nil, postsCount: Int = 0, followersCount: Int = 0, followingCount: Int = 0, savedVideos: [String] = [], createdAt: Date = Date()) {
         self.id = id
         self.email = email
         // Generate username from email if none provided
@@ -24,6 +24,7 @@ struct User: Identifiable, Codable {
             // Convert email to username: example@email.com -> example
             self.username = email.components(separatedBy: "@").first ?? "user"
         }
+        self.profileImageURL = profileImageURL
         self.postsCount = postsCount
         self.followersCount = followersCount
         self.followingCount = followingCount
@@ -35,7 +36,7 @@ struct User: Identifiable, Codable {
         case id
         case email
         case username
-        case profilePicUrl
+        case profileImageURL
         case bio
         case postsCount
         case followersCount
@@ -58,11 +59,14 @@ struct User: Identifiable, Codable {
         }
         
         let savedVideos = data["savedVideos"] as? [String] ?? []
+        let profileImageURLString = data["profileImageURL"] as? String
+        let profileImageURL = profileImageURLString.flatMap { URL(string: $0) }
         
         return User(
             id: document.documentID,
             email: email,
             username: username,
+            profileImageURL: profileImageURL,
             postsCount: postsCount,
             followersCount: followersCount,
             followingCount: followingCount,
@@ -73,7 +77,7 @@ struct User: Identifiable, Codable {
     
     // Convert User to Firestore data
     func toFirestore() -> [String: Any] {
-        return [
+        var data: [String: Any] = [
             "id": id,
             "email": email,
             "username": username,
@@ -83,6 +87,13 @@ struct User: Identifiable, Codable {
             "savedVideos": savedVideos,
             "createdAt": Timestamp(date: createdAt)
         ]
+        
+        // Only include profileImageURL if it exists
+        if let profileImageURL = profileImageURL {
+            data["profileImageURL"] = profileImageURL.absoluteString
+        }
+        
+        return data
     }
     
     static func fromFirebaseUser(_ firebaseUser: FirebaseAuth.User) -> User {

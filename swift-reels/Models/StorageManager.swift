@@ -352,4 +352,59 @@ class StorageManager: ObservableObject {
         try await ref.delete()
         print("✅ Thumbnail deleted successfully: \(path)")
     }
+    
+    // MARK: - Profile Image Operations
+    
+    /// Uploads a profile image and returns the download URL
+    func uploadProfileImage(data: Data, filename: String) async throws -> URL {
+        print("📤 Starting profile image upload: \(filename)")
+        
+        let ref = storage.reference().child(filename)
+        
+        // Create metadata
+        let metadata = StorageMetadata()
+        metadata.contentType = "image/jpeg"
+        metadata.customMetadata = [
+            "uploadedAt": ISO8601DateFormatter().string(from: Date()),
+            "size": "\(data.count)"
+        ]
+        
+        do {
+            // Upload the data with metadata
+            print("📤 Uploading \(data.count) bytes...")
+            let result = try await ref.putDataAsync(data, metadata: metadata)
+            print("✅ Upload metadata: \(result.dictionaryRepresentation())")
+            
+            // Get the download URL
+            let url = try await ref.downloadURL()
+            print("✅ Profile image uploaded successfully to: \(url)")
+            return url
+        } catch {
+            print("❌ Profile image upload failed: \(error.localizedDescription)")
+            throw error
+        }
+    }
+    
+    /// Downloads a profile image from Firebase Storage
+    func downloadProfileImage(url: URL) async throws -> Data {
+        guard let path = url.path.components(separatedBy: "/profile_images/").last else {
+            throw NSError(domain: "StorageManager", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid profile image URL"])
+        }
+        
+        let ref = storage.reference().child("profile_images/\(path)")
+        let data = try await ref.data(maxSize: 5 * 1024 * 1024) // 5MB max
+        print("✅ Profile image downloaded successfully: \(path)")
+        return data
+    }
+    
+    /// Deletes a profile image from storage
+    func deleteProfileImage(url: URL) async throws {
+        guard let path = url.path.components(separatedBy: "/profile_images/").last else {
+            throw NSError(domain: "StorageManager", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid profile image URL"])
+        }
+        
+        let ref = storage.reference().child("profile_images/\(path)")
+        try await ref.delete()
+        print("✅ Profile image deleted successfully: \(path)")
+    }
 } 

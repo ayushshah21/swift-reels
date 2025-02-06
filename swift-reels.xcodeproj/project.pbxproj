@@ -17,6 +17,7 @@
 		C882587F2D52B26600883F12 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = C882587E2D52B26600883F12 /* FirebaseAuth */; };
 		C88258812D52B26600883F12 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = C88258802D52B26600883F12 /* FirebaseFirestore */; };
 		C88258832D52B26600883F12 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = C88258822D52B26600883F12 /* FirebaseStorage */; };
+		C89EA0372D5433D60038A7FE /* RtcBasic in Frameworks */ = {isa = PBXBuildFile; productRef = C89EA0362D5433D60038A7FE /* RtcBasic */; };
 		C8E09C512D5268230038BA5B /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = C8E09C502D5268230038BA5B /* FirebaseAnalytics */; };
 		C8E09C532D5268230038BA5B /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = C8E09C522D5268230038BA5B /* FirebaseAuth */; };
 		C8E09C552D5268230038BA5B /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = C8E09C542D5268230038BA5B /* FirebaseFirestore */; };
@@ -50,9 +51,22 @@
 		C89BB0EF2D51C006002CB01B /* swift-reelsUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "swift-reelsUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		C89EA02E2D53EE940038A7FE /* Exceptions for "swift-reels" folder in "swift-reels" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = C89BB0D32D51C004002CB01B /* swift-reels */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		C89BB0D62D51C004002CB01B /* swift-reels */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				C89EA02E2D53EE940038A7FE /* Exceptions for "swift-reels" folder in "swift-reels" target */,
+			);
 			path = "swift-reels";
 			sourceTree = "<group>";
 		};
@@ -76,6 +90,7 @@
 				C8E09C512D5268230038BA5B /* FirebaseAnalytics in Frameworks */,
 				C882587D2D52B26600883F12 /* FirebaseAnalyticsWithoutAdIdSupport in Frameworks */,
 				C8E09C552D5268230038BA5B /* FirebaseFirestore in Frameworks */,
+				C89EA0372D5433D60038A7FE /* RtcBasic in Frameworks */,
 				C88258792D52B26600883F12 /* FirebaseAnalytics in Frameworks */,
 				C88258652D526D5500883F12 /* FirebaseAnalytics in Frameworks */,
 				C88258812D52B26600883F12 /* FirebaseFirestore in Frameworks */,
@@ -241,6 +256,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				C88258632D526D5500883F12 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				C89EA0352D5433D60038A7FE /* XCRemoteSwiftPackageReference "AgoraRtcEngine_iOS" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = C89BB0D52D51C004002CB01B /* Products */;
@@ -507,6 +523,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "swift-reels/Info.plist";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -517,7 +534,7 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 15.1;
@@ -546,6 +563,7 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "swift-reels/Info.plist";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -556,7 +574,7 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 15.1;
@@ -712,6 +730,14 @@
 				minimumVersion = 11.8.0;
 			};
 		};
+		C89EA0352D5433D60038A7FE /* XCRemoteSwiftPackageReference "AgoraRtcEngine_iOS" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/AgoraIO/AgoraRtcEngine_iOS";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 4.5.0;
+			};
+		};
 		C8E09C4F2D5268230038BA5B /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/firebase/firebase-ios-sdk.git";
@@ -767,6 +793,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = C88258632D526D5500883F12 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseStorage;
+		};
+		C89EA0362D5433D60038A7FE /* RtcBasic */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C89EA0352D5433D60038A7FE /* XCRemoteSwiftPackageReference "AgoraRtcEngine_iOS" */;
+			productName = RtcBasic;
 		};
 		C8E09C502D5268230038BA5B /* FirebaseAnalytics */ = {
 			isa = XCSwiftPackageProductDependency;

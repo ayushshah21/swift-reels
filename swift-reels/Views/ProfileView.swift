@@ -1,5 +1,6 @@
 import SwiftUI
 import FirebaseAuth
+import PhotosUI
 
 struct ProfileView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
@@ -8,124 +9,142 @@ struct ProfileView: View {
     @State private var savedVideos: [VideoModel] = []
     @State private var isLoadingSaved = true
     @State private var showingSavedVideos = false
-    @State private var showingUploadSheet = false
-    @State private var showTestVideo = false
+    @State private var showingImagePicker = false
+    @State private var selectedImage: PhotosPickerItem?
+    @State private var profileImage: UIImage?
+    @State private var isUploadingImage = false
+    
+    private let darkBackground = Color(UIColor.systemBackground)
+    private let cardBackground = Color(UIColor.secondarySystemBackground).opacity(0.7)
+    private let accentColor = Color(red: 0.35, green: 0.47, blue: 0.95) // Matching the app's accent color
     
     var body: some View {
         NavigationStack {
-            VStack(spacing: 20) {
-                // Profile Header
-                VStack(spacing: 8) {
-                    Image(systemName: "person.circle.fill")
-                        .resizable()
-                        .frame(width: 80, height: 80)
-                        .foregroundColor(.gray)
-                    
-                    Text(currentUser?.username ?? Auth.auth().currentUser?.email ?? "User")
-                        .font(.title2)
-                        .fontWeight(.medium)
-                }
-                .padding(.top, 32)
+            ZStack {
+                // Background
+                darkBackground.ignoresSafeArea()
                 
-                // Stats
-                HStack(spacing: 40) {
-                    VStack {
-                        Text("\(currentUser?.postsCount ?? 0)")
-                            .font(.title2)
-                            .fontWeight(.bold)
-                        Text("Posts")
-                            .foregroundColor(.gray)
-                    }
-                    
-                    VStack {
-                        Text("\(currentUser?.followersCount ?? 0)")
-                            .font(.title2)
-                            .fontWeight(.bold)
-                        Text("Followers")
-                            .foregroundColor(.gray)
-                    }
-                    
-                    VStack {
-                        Text("\(savedVideos.count)")
-                            .font(.title2)
-                            .fontWeight(.bold)
-                        Text("Saved")
-                            .foregroundColor(.gray)
-                    }
-                }
-                .padding(.vertical)
-                
-                // Saved Videos Button
-                Button(action: { showingSavedVideos = true }) {
-                    HStack {
-                        Image(systemName: "bookmark.fill")
-                        Text("Saved Workouts")
-                        Spacer()
-                        Text("\(savedVideos.count)")
-                            .foregroundColor(.gray)
-                        Image(systemName: "chevron.right")
-                            .foregroundColor(.gray)
-                    }
-                    .padding()
-                    .background(Theme.card)
-                    .cornerRadius(10)
-                }
-                .padding(.horizontal)
-                
-                // Upload Video Button
-                Button(action: { showingUploadSheet = true }) {
-                    HStack {
-                        Image(systemName: "square.and.arrow.up")
-                        Text("Upload Workout")
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .foregroundColor(.gray)
-                    }
-                    .padding()
-                    .background(Theme.card)
-                    .cornerRadius(10)
-                }
-                .padding(.horizontal)
-                
-                // Live Sessions Button
-                NavigationLink(destination: LiveSessionsView()) {
-                    HStack {
-                        Image(systemName: "video.fill")
-                        Text("Live Sessions")
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .foregroundColor(.gray)
-                    }
-                    .padding()
-                    .background(Theme.card)
-                    .cornerRadius(10)
-                }
-                .padding(.horizontal)
-                
-                Spacer()
-                
-                // Sign Out Button
-                Button(action: {
-                    authViewModel.signOut()
-                }) {
-                    Text("Sign Out")
-                        .foregroundColor(.white)
+                ScrollView {
+                    VStack(spacing: 24) {
+                        // Profile Header
+                        VStack(spacing: 16) {
+                            ZStack(alignment: .bottomTrailing) {
+                                if let profileImage = profileImage {
+                                    Image(uiImage: profileImage)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 100, height: 100)
+                                        .clipShape(Circle())
+                                        .overlay(Circle().stroke(accentColor, lineWidth: 2))
+                                } else {
+                                    Image(systemName: "person.circle.fill")
+                                        .resizable()
+                                        .frame(width: 100, height: 100)
+                                        .foregroundColor(accentColor)
+                                }
+                                
+                                // Edit button
+                                PhotosPicker(selection: $selectedImage, matching: .images) {
+                                    Image(systemName: "pencil.circle.fill")
+                                        .symbolRenderingMode(.palette)
+                                        .foregroundStyle(.white, accentColor)
+                                        .font(.title)
+                                        .background(Circle().fill(darkBackground))
+                                }
+                            }
+                            
+                            Text(currentUser?.username ?? Auth.auth().currentUser?.email ?? "User")
+                                .font(.title2)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.primary)
+                        }
+                        .padding(.top, 32)
+                        
+                        // Loading indicator for image upload
+                        if isUploadingImage {
+                            ProgressView()
+                                .tint(accentColor)
+                        }
+                        
+                        // Stats
+                        HStack(spacing: 50) {
+                            VStack(spacing: 8) {
+                                Text("\(currentUser?.postsCount ?? 0)")
+                                    .font(.title2)
+                                    .fontWeight(.bold)
+                                Text("Posts")
+                                    .font(.subheadline)
+                                    .foregroundColor(.gray)
+                            }
+                            
+                            VStack(spacing: 8) {
+                                Text("\(currentUser?.followersCount ?? 0)")
+                                    .font(.title2)
+                                    .fontWeight(.bold)
+                                Text("Followers")
+                                    .font(.subheadline)
+                                    .foregroundColor(.gray)
+                            }
+                            
+                            VStack(spacing: 8) {
+                                Text("\(savedVideos.count)")
+                                    .font(.title2)
+                                    .fontWeight(.bold)
+                                Text("Saved")
+                                    .font(.subheadline)
+                                    .foregroundColor(.gray)
+                            }
+                        }
+                        .padding(.vertical, 20)
                         .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.red)
-                        .cornerRadius(10)
+                        .background(cardBackground)
+                        .cornerRadius(15)
+                        .padding(.horizontal)
+                        
+                        // Saved Videos Button
+                        Button(action: { showingSavedVideos = true }) {
+                            HStack {
+                                Image(systemName: "bookmark.fill")
+                                    .font(.title3)
+                                Text("Saved Workouts")
+                                    .fontWeight(.medium)
+                                Spacer()
+                                Text("\(savedVideos.count)")
+                                    .foregroundColor(.gray)
+                                Image(systemName: "chevron.right")
+                                    .foregroundColor(.gray)
+                            }
+                            .padding()
+                            .background(cardBackground)
+                            .cornerRadius(15)
+                        }
+                        .foregroundColor(.primary)
+                        .padding(.horizontal)
+                        
+                        Spacer()
+                        
+                        // Sign Out Button
+                        Button(action: {
+                            authViewModel.signOut()
+                        }) {
+                            Text("Sign Out")
+                                .fontWeight(.medium)
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color.red.opacity(0.8))
+                                .cornerRadius(15)
+                        }
+                        .padding(.horizontal)
+                        .padding(.bottom, 20)
+                    }
                 }
-                .padding(.horizontal)
-                .padding(.bottom, 20)
-                
-                // Test Video Button
-                Button("Test Live Stream Camera") {
-                    showTestVideo = true
+            }
+            .onChange(of: selectedImage) { newItem in
+                guard let item = newItem else { return }
+                Task {
+                    await loadAndUploadImage(from: item)
                 }
-                .padding()
-                .background(Color.blue)
-                .foregroundColor(.white)
-                .cornerRadius(8)
             }
             .task {
                 if let authUser = Auth.auth().currentUser {
@@ -133,6 +152,11 @@ struct ProfileView: View {
                         currentUser = try await firestoreManager.getUser(id: authUser.uid)
                         savedVideos = try await firestoreManager.getSavedVideos()
                         isLoadingSaved = false
+                        
+                        // Load profile image if available
+                        if let imageUrl = currentUser?.profileImageURL {
+                            await loadProfileImage(from: imageUrl)
+                        }
                     } catch {
                         print("❌ Error fetching user data: \(error.localizedDescription)")
                         isLoadingSaved = false
@@ -142,11 +166,69 @@ struct ProfileView: View {
             .sheet(isPresented: $showingSavedVideos) {
                 SavedVideosView(videos: savedVideos)
             }
-            .sheet(isPresented: $showingUploadSheet) {
-                VideoUploadView()
+        }
+    }
+    
+    private func loadAndUploadImage(from item: PhotosPickerItem) async {
+        isUploadingImage = true
+        defer { isUploadingImage = false }
+        
+        do {
+            guard let data = try await item.loadTransferable(type: Data.self) else { return }
+            guard let uiImage = UIImage(data: data) else { return }
+            
+            // Resize image to a reasonable size (e.g., 500x500 max)
+            let resizedImage = await resizeImage(uiImage, targetSize: CGSize(width: 500, height: 500))
+            guard let imageData = resizedImage.jpegData(compressionQuality: 0.7) else { return }
+            
+            // Upload to Firebase Storage
+            if let userId = Auth.auth().currentUser?.uid {
+                let filename = "profile_images/\(userId).jpg"
+                let url = try await StorageManager.shared.uploadProfileImage(data: imageData, filename: filename)
+                
+                // Update user profile in Firestore
+                var updatedUser = currentUser ?? User(id: userId, email: Auth.auth().currentUser?.email ?? "")
+                updatedUser.profileImageURL = url
+                try await firestoreManager.updateUser(updatedUser)
+                currentUser = updatedUser
+                
+                // Update UI
+                await MainActor.run {
+                    self.profileImage = resizedImage
+                }
             }
-            .sheet(isPresented: $showTestVideo) {
-                TestVideoView()
+        } catch {
+            print("❌ Error uploading profile image: \(error.localizedDescription)")
+        }
+    }
+    
+    private func loadProfileImage(from url: URL) async {
+        do {
+            let data = try await StorageManager.shared.downloadProfileImage(url: url)
+            if let image = UIImage(data: data) {
+                await MainActor.run {
+                    self.profileImage = image
+                }
+            }
+        } catch {
+            print("❌ Error loading profile image: \(error.localizedDescription)")
+        }
+    }
+    
+    private func resizeImage(_ image: UIImage, targetSize: CGSize) async -> UIImage {
+        let size = image.size
+        let widthRatio  = targetSize.width  / size.width
+        let heightRatio = targetSize.height / size.height
+        let ratio = min(widthRatio, heightRatio)
+        let newSize = CGSize(width: size.width * ratio, height: size.height * ratio)
+        
+        return await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                let renderer = UIGraphicsImageRenderer(size: newSize)
+                let resizedImage = renderer.image { context in
+                    image.draw(in: CGRect(origin: .zero, size: newSize))
+                }
+                continuation.resume(returning: resizedImage)
             }
         }
     }
@@ -205,20 +287,16 @@ struct SavedVideosView: View {
             .background(Color(.systemBackground))
         }
         .onDisappear {
-            // Clean up cached assets when view disappears
             playerManager.cleanupCache()
         }
     }
     
     private func handleVideoAppear(at index: Int) {
         visibleIndices.insert(index)
-        
-        // Preload the next few videos
-        let preloadCount = 2 // Number of videos to preload ahead
+        let preloadCount = 2
         for offset in 1...preloadCount {
             let nextIndex = index + offset
             guard nextIndex < videos.count else { break }
-            
             Task {
                 await playerManager.preloadVideo(url: videos[nextIndex].videoURL)
             }
