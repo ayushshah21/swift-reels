@@ -1,5 +1,6 @@
 import SwiftUI
 import FirebaseAuth
+import UIKit
 
 struct TestVideoView: View {
     @StateObject private var agoraManager = AgoraManager.shared
@@ -10,8 +11,15 @@ struct TestVideoView: View {
     
     var body: some View {
         ZStack {
-            AgoraVideoView()
-                .ignoresSafeArea()
+            if joinSession != nil {
+                // For audience, create the remote view container first
+                RemoteVideoContainer()
+                    .ignoresSafeArea()
+            } else {
+                // For broadcaster, use regular AgoraVideoView
+                AgoraVideoView()
+                    .ignoresSafeArea()
+            }
             
             VStack {
                 HStack {
@@ -65,8 +73,9 @@ struct TestVideoView: View {
                                         currentSession = session
                                         print("✅ Created live session: \(session.id ?? "")")
                                         
-                                        // Set role and join channel
-                                        agoraManager.setRole(.broadcaster)
+                                        // Small delay to ensure view is ready
+                                        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 second
+                                        print("Joining channel as broadcaster")
                                         await agoraManager.joinChannel(channelName)
                                     } catch {
                                         print("❌ Error creating live session: \(error.localizedDescription)")
@@ -94,19 +103,79 @@ struct TestVideoView: View {
         }
         .onAppear {
             if let session = joinSession {
-                // Join existing session as audience
-                currentSession = session
-                agoraManager.setRole(.audience)
                 Task {
+                    print("Setting up for joining session")
+                    agoraManager.setRole(.audience)
+                    currentSession = session
+                    
+                    // Small delay to ensure view is ready
+                    try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 second
+                    print("Joining channel as audience")
                     await agoraManager.joinChannel(session.channelId)
                 }
             } else {
-                // Set up for broadcasting
+                print("Setting initial broadcaster role")
                 agoraManager.setRole(.broadcaster)
             }
         }
         .onDisappear {
             agoraManager.leaveChannel()
+        }
+    }
+}
+
+// Remote video container with coordinator
+struct RemoteVideoContainer: UIViewRepresentable {
+    class Coordinator: NSObject {
+        var containerView: UIView?
+        var remoteView: UIView?
+        
+        func setupRemoteView() {
+            guard let containerView = containerView else { return }
+            
+            // Create remote view
+            let remote = UIView(frame: containerView.bounds)
+            remote.backgroundColor = .clear
+            remote.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+            containerView.addSubview(remote)
+            
+            // Store reference
+            self.remoteView = remote
+            
+            // Set up in Agora manager
+            print("📱 Setting up remote view in coordinator")
+            print("   Container frame: \(containerView.frame)")
+            print("   Remote frame: \(remote.frame)")
+            
+            DispatchQueue.main.async {
+                AgoraManager.shared.setupInitialRemoteVideo(view: remote)
+            }
+        }
+    }
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+    
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView(frame: CGRect(x: 0, y: 0, width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height))
+        view.backgroundColor = .black
+        
+        // Store container view reference
+        context.coordinator.containerView = view
+        
+        // Set up remote view after a brief delay to ensure proper frame
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            context.coordinator.setupRemoteView()
+        }
+        
+        return view
+    }
+    
+    func updateUIView(_ uiView: UIView, context: Context) {
+        // Update frames if needed
+        if let remoteView = context.coordinator.remoteView {
+            remoteView.frame = uiView.bounds
         }
     }
 } 

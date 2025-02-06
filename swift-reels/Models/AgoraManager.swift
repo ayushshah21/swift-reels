@@ -243,7 +243,35 @@ class AgoraManager: NSObject, ObservableObject {
             setupRemoteVideo(view: view, uid: uid)
         } else {
             print("⏳ No remote user yet, waiting for remote user to join")
+            // Start a retry timer to handle race conditions
+            startRetryTimer()
         }
+    }
+    
+    private func startRetryTimer() {
+        // Try to set up remote video every 0.5 seconds for up to 5 seconds
+        var attempts = 0
+        let maxAttempts = 10
+        
+        func attemptSetup() {
+            guard attempts < maxAttempts else {
+                print("⚠️ Max retry attempts reached for remote video setup")
+                return
+            }
+            
+            if let view = remoteView, let uid = remoteUid {
+                print("🔄 Retry attempt \(attempts + 1): Setting up remote video for uid: \(uid)")
+                setupRemoteVideo(view: view, uid: uid)
+                return
+            }
+            
+            attempts += 1
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                attemptSetup()
+            }
+        }
+        
+        attemptSetup()
     }
 }
 
