@@ -6,7 +6,7 @@ import SwiftUI
 class AgoraManager: NSObject, ObservableObject {
     static let shared = AgoraManager()
     
-    private var engine: AgoraRtcEngineKit?
+    internal var engine: AgoraRtcEngineKit?
     private let appId = APIConfig.agoraAppId
     
     @Published var isInitialized = false

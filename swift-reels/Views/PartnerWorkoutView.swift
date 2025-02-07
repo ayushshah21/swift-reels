@@ -1,6 +1,8 @@
 import SwiftUI
 import AgoraRtcKit
 import FirebaseAuth
+import AVFoundation
+import AVKit
 
 struct PartnerWorkoutView: View {
     let session: PartnerSession
@@ -17,6 +19,8 @@ struct PartnerWorkoutView: View {
     @State private var selectedRating = 0
     @State private var hasSubmittedRating = false
     @State private var currentSession: PartnerSession
+    @State private var recordedVideoURL: URL?
+    @State private var showPostWorkoutOptions = false
     
     init(session: PartnerSession, isHost: Bool) {
         self.session = session
@@ -163,6 +167,21 @@ struct PartnerWorkoutView: View {
                         .fontWeight(.semibold)
                         .foregroundColor(.white)
                     
+                    if let _ = recordedVideoURL {
+                        Button(action: handlePostWorkout) {
+                            HStack {
+                                Image(systemName: "square.and.arrow.up")
+                                Text("Post Workout")
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 30)
+                            .padding(.vertical, 12)
+                            .background(Color.blue)
+                            .cornerRadius(8)
+                        }
+                        .padding(.vertical)
+                    }
+                    
                     if canSubmitRating {
                         if !hasSubmittedRating {
                             Text("Rate your workout partner")
@@ -257,6 +276,10 @@ struct PartnerWorkoutView: View {
         // Join the channel
         await agoraManager.joinChannel(session.channelId)
         
+        // Start recording immediately
+        print("🎥 Starting session recording")
+        WorkoutRecorder.shared.startRecording()
+        
         // Start listening for session updates
         listenToSessionStatus()
         
@@ -296,6 +319,19 @@ struct PartnerWorkoutView: View {
                 if let sessionId = session.id {
                     try await firestoreManager.endPartnerSession(sessionId)
                 }
+                
+                // Stop recording when session ends
+                print("⏹️ Session ended, stopping recording")
+                WorkoutRecorder.shared.stopRecording { videoURL in
+                    Task { @MainActor in
+                        if let url = videoURL {
+                            print("✅ Recording saved to: \(url.path)")
+                            recordedVideoURL = url
+                            showPostWorkoutOptions = true
+                        }
+                    }
+                }
+                
                 cleanupSession()
                 sessionHasEnded = true
             } catch {
@@ -330,6 +366,65 @@ struct PartnerWorkoutView: View {
                 print("✅ Rating submitted successfully")
             } catch {
                 print("❌ Rating submission failed with error: \(error.localizedDescription)")
+                self.error = error.localizedDescription
+            }
+        }
+    }
+    
+    private func handlePostWorkout() {
+        guard let videoURL = recordedVideoURL else { return }
+        
+        Task {
+            do {
+                // Create a thumbnail from the video
+                let asset = AVURLAsset(url: videoURL)
+                let generator = AVAssetImageGenerator(asset: asset)
+                generator.appliesPreferredTrackTransform = true
+                let time = CMTime(seconds: 1, preferredTimescale: 60)
+                let cgImage = try await generator.image(at: time).image
+                let thumbnailImage = UIImage(cgImage: cgImage)
+                
+                // Save thumbnail
+                guard let thumbnailData = thumbnailImage.jpegData(compressionQuality: 0.7) else {
+                    throw NSError(domain: "PartnerWorkoutView", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to create thumbnail"])
+                }
+                
+                // Upload video and thumbnail
+                let thumbnailFilename = "thumbnails/workout_\(UUID().uuidString).jpg"
+                let thumbnailURL = try await StorageManager.shared.uploadThumbnail(data: thumbnailData, filename: thumbnailFilename)
+                
+                let videoFilename = "reels/workout_\(UUID().uuidString).mp4"
+                let videoData = try Data(contentsOf: videoURL)
+                let uploadedVideoURL = try await StorageManager.shared.uploadVideo(
+                    data: videoData,
+                    filename: videoFilename,
+                    workoutType: currentSession.workoutType
+                )
+                
+                // Create community reel
+                var participants = [currentSession.hostId]
+                if let partnerId = currentSession.partnerId {
+                    participants.append(partnerId)
+                }
+                
+                let duration = try await asset.load(.duration)
+                let durationSeconds = CMTimeGetSeconds(duration)
+                
+                _ = try await firestoreManager.createCommunityReel(
+                    videoURL: uploadedVideoURL,
+                    thumbnailURL: thumbnailURL,
+                    participants: participants,
+                    duration: durationSeconds,
+                    workoutType: currentSession.workoutType
+                )
+                
+                print("✅ Successfully posted workout reel")
+                
+                // Clean up temporary file
+                try? FileManager.default.removeItem(at: videoURL)
+                
+            } catch {
+                print("❌ Error posting workout: \(error.localizedDescription)")
                 self.error = error.localizedDescription
             }
         }

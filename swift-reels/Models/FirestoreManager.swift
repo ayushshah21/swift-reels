@@ -1026,4 +1026,109 @@ class FirestoreManager: ObservableObject {
         
         print("✅ Rating submitted successfully")
     }
+    
+    // MARK: - Community Reels
+    
+    /// Creates a new community reel from a partner workout session
+    func createCommunityReel(videoURL: URL, thumbnailURL: URL?, participants: [String], duration: TimeInterval, workoutType: WorkoutType) async throws -> CommunityReel {
+        print("🎬 Creating community reel")
+        
+        let reel = CommunityReel(
+            id: nil,
+            videoURL: videoURL,
+            thumbnailURL: thumbnailURL,
+            participants: participants,
+            duration: duration,
+            workoutType: workoutType,
+            createdAt: Date(),
+            likeCount: 0,
+            commentCount: 0
+        )
+        
+        let docRef = try await db.collection("communityReels").addDocument(data: reel.toFirestore())
+        var createdReel = reel
+        createdReel.id = docRef.documentID
+        print("✅ Created community reel: \(docRef.documentID)")
+        return createdReel
+    }
+    
+    /// Gets all community reels, ordered by creation date
+    func getCommunityReels(limit: Int = 20) async throws -> [CommunityReel] {
+        print("🔍 Fetching community reels...")
+        
+        let snapshot = try await db.collection("communityReels")
+            .order(by: "createdAt", descending: true)
+            .limit(to: limit)
+            .getDocuments()
+        
+        let reels = snapshot.documents.compactMap { CommunityReel.fromFirestore($0) }
+        print("✅ Found \(reels.count) community reels")
+        return reels
+    }
+    
+    /// Gets community reels for a specific user
+    func getCommunityReels(forUser userId: String, limit: Int = 20) async throws -> [CommunityReel] {
+        print("🔍 Fetching community reels for user: \(userId)")
+        
+        let snapshot = try await db.collection("communityReels")
+            .whereField("participants", arrayContains: userId)
+            .order(by: "createdAt", descending: true)
+            .limit(to: limit)
+            .getDocuments()
+        
+        let reels = snapshot.documents.compactMap { CommunityReel.fromFirestore($0) }
+        print("✅ Found \(reels.count) community reels for user")
+        return reels
+    }
+    
+    /// Deletes a community reel
+    func deleteCommunityReel(_ reelId: String) async throws {
+        print("🗑️ Deleting community reel: \(reelId)")
+        
+        // Get the reel first to get the video URL
+        guard let reel = try await getCommunityReel(reelId) else {
+            throw NSError(domain: "FirestoreManager", code: 1, userInfo: [NSLocalizedDescriptionKey: "Reel not found"])
+        }
+        
+        // Delete video from storage
+        try await StorageManager.shared.deleteVideo(url: reel.videoURL)
+        
+        // Delete thumbnail if exists
+        if let thumbnailURL = reel.thumbnailURL {
+            try await StorageManager.shared.deleteThumbnail(url: thumbnailURL)
+        }
+        
+        // Delete Firestore document
+        try await db.collection("communityReels").document(reelId).delete()
+        print("✅ Deleted community reel")
+    }
+    
+    /// Gets a specific community reel
+    func getCommunityReel(_ reelId: String) async throws -> CommunityReel? {
+        let doc = try await db.collection("communityReels").document(reelId).getDocument()
+        return CommunityReel.fromFirestore(doc)
+    }
+    
+    /// Provides real-time updates for community reels
+    func communityReelsUpdates() -> AsyncStream<[CommunityReel]> {
+        AsyncStream { continuation in
+            let listener = db.collection("communityReels")
+                .order(by: "createdAt", descending: true)
+                .limit(to: 20)
+                .addSnapshotListener { snapshot, error in
+                    guard let documents = snapshot?.documents else {
+                        print("❌ Error fetching community reels: \(error?.localizedDescription ?? "Unknown error")")
+                        continuation.yield([])
+                        return
+                    }
+                    
+                    let reels = documents.compactMap { CommunityReel.fromFirestore($0) }
+                    continuation.yield(reels)
+                }
+            
+            continuation.onTermination = { @Sendable _ in
+                listener.remove()
+            }
+        }
+    }
 } 
