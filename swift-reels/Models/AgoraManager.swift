@@ -61,11 +61,11 @@ class AgoraManager: NSObject, ObservableObject {
             print("📹 Configuring broadcaster settings...")
             // Configure video encoding parameters for broadcasting
             let videoConfig = AgoraVideoEncoderConfiguration(
-                size: CGSize(width: 1280, height: 720),
-                frameRate: .fps60,
-                bitrate: 2000,
-                orientationMode: .adaptative,
-                mirrorMode: .auto
+                size: CGSize(width: 720, height: 1280), // Portrait mode dimensions for reels
+                frameRate: .fps30,
+                bitrate: AgoraVideoBitrateStandard,
+                orientationMode: .fixedPortrait, // Force portrait mode
+                mirrorMode: .disabled // Disable mirroring
             )
             engine.setVideoEncoderConfiguration(videoConfig)
             
@@ -103,7 +103,7 @@ class AgoraManager: NSObject, ObservableObject {
         canvas.view = view
         canvas.renderMode = .hidden
         canvas.uid = 0  // Use 0 for local user
-        canvas.mirrorMode = .enabled  // Mirror for local preview only
+        canvas.mirrorMode = .disabled  // Disable mirroring to fix orientation
         engine.setupLocalVideo(canvas)
         
         // Start preview if broadcaster

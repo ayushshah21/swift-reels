@@ -568,7 +568,7 @@ struct CustomVideoPlayer: UIViewControllerRepresentable {
         let controller = AVPlayerViewController()
         controller.player = player
         controller.showsPlaybackControls = false
-        controller.videoGravity = .resizeAspectFill
+        controller.videoGravity = .resizeAspect
         controller.allowsPictureInPicturePlayback = false
         return controller
     }

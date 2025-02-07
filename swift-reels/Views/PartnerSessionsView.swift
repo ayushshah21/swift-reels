@@ -10,6 +10,7 @@ struct PartnerSessionsView: View {
     @State private var showCreateSheet = false
     @State private var showPartnerWorkout = false
     @State private var createdSession: PartnerSession?
+    @State private var showCommunityReels = false
     
     let timer = Timer.publish(every: 5, on: .main, in: .common).autoconnect()
     
@@ -46,6 +47,27 @@ struct PartnerSessionsView: View {
                             .cornerRadius(8)
                     }
                 }
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        HStack(spacing: 16) {
+                            // Community Reels Button
+                            Button(action: {
+                                showCommunityReels = true
+                            }) {
+                                Image(systemName: "video.bubble.left")
+                                    .symbolRenderingMode(.hierarchical)
+                                    .font(.system(size: 18))
+                            }
+                            
+                            // Create Session Button
+                            Button(action: {
+                                showCreateSheet = true
+                            }) {
+                                Image(systemName: "plus")
+                            }
+                        }
+                    }
+                }
             } else {
                 List(availableSessions) { session in
                     Button(action: {
@@ -59,10 +81,22 @@ struct PartnerSessionsView: View {
                 }
                 .toolbar {
                     ToolbarItem(placement: .navigationBarTrailing) {
-                        Button(action: {
-                            showCreateSheet = true
-                        }) {
-                            Image(systemName: "plus")
+                        HStack(spacing: 16) {
+                            // Community Reels Button
+                            Button(action: {
+                                showCommunityReels = true
+                            }) {
+                                Image(systemName: "video.bubble.left")
+                                    .symbolRenderingMode(.hierarchical)
+                                    .font(.system(size: 18))
+                            }
+                            
+                            // Create Session Button
+                            Button(action: {
+                                showCreateSheet = true
+                            }) {
+                                Image(systemName: "plus")
+                            }
                         }
                     }
                 }
@@ -100,6 +134,18 @@ struct PartnerSessionsView: View {
         .fullScreenCover(isPresented: $showPartnerWorkout) {
             if let session = createdSession {
                 PartnerWorkoutView(session: session, isHost: true)
+            }
+        }
+        .fullScreenCover(isPresented: $showCommunityReels) {
+            NavigationStack {
+                CommunityReelsView()
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarLeading) {
+                            Button("Done") {
+                                showCommunityReels = false
+                            }
+                        }
+                    }
             }
         }
     }

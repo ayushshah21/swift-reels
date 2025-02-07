@@ -54,17 +54,6 @@ struct ContentView: View {
                     }
                     .tag(3)
                     
-                    NavigationStack {
-                        CommunityReelsView()
-                    }
-                    .tabItem {
-                        VStack {
-                            Image(systemName: "film")
-                            Text("Community")
-                        }
-                    }
-                    .tag(4)
-                    
                     ProfileView()
                         .tabItem {
                             VStack {
@@ -72,7 +61,7 @@ struct ContentView: View {
                                 Text("Me")
                             }
                         }
-                        .tag(5)
+                        .tag(4)
                 }
                 .tint(.primary)
                 .sheet(isPresented: $showUploadSheet) {

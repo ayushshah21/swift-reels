@@ -1,5 +1,6 @@
 import SwiftUI
 import FirebaseFirestore
+import AVKit
 
 struct ReelsFeedView: View {
     @State private var currentIndex = 0

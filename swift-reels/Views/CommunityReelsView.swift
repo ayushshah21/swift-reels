@@ -13,54 +13,42 @@ struct CommunityReelsView: View {
     @AppStorage("uid") private var uid: String = ""
     
     var body: some View {
-        NavigationStack {
-            Group {
-                if isLoading {
-                    ProgressView()
-                } else if let error = error {
-                    VStack {
-                        Image(systemName: "exclamationmark.triangle")
-                            .font(.largeTitle)
-                            .foregroundColor(.red)
-                        Text(error.localizedDescription)
-                            .multilineTextAlignment(.center)
-                            .padding()
-                    }
-                } else if reels.isEmpty {
-                    VStack(spacing: 20) {
-                        Image(systemName: "video.slash")
-                            .font(.system(size: 50))
-                            .foregroundColor(.gray)
-                        Text("No community reels yet")
-                            .font(.title3)
+        ZStack(alignment: .top) {
+            if reels.isEmpty {
+                // Show loading or empty state
+                VStack {
+                    Spacer()
+                    if isLoading {
+                        ProgressView()
+                            .scaleEffect(1.5)
+                    } else {
+                        Text("No community reels found")
                             .foregroundColor(.gray)
                     }
-                } else {
-                    GeometryReader { geometry in
-                        TabView(selection: $currentIndex) {
-                            ForEach(Array(reels.enumerated()), id: \.element.id) { index, reel in
+                    Spacer()
+                }
+            } else {
+                // Main Content
+                ScrollView(.vertical, showsIndicators: false) {
+                    LazyVStack(spacing: 0) {
+                        ForEach(reels) { reel in
+                            GeometryReader { geometry in
                                 CommunityReelView(reel: reel, onDelete: {
                                     deleteReel(reel)
                                 })
                                 .frame(width: geometry.size.width, height: geometry.size.height)
-                                .tag(index)
-                                .rotationEffect(.degrees(-90))
+                                .rotation3DEffect(
+                                    .degrees(0),
+                                    axis: (x: 0, y: 0, z: 0)
+                                )
                             }
+                            .frame(height: UIScreen.main.bounds.height)
                         }
-                        .frame(
-                            width: geometry.size.height,
-                            height: geometry.size.width
-                        )
-                        .rotationEffect(.degrees(90), anchor: .topLeading)
-                        .offset(x: geometry.size.width)
-                        .tabViewStyle(.page(indexDisplayMode: .never))
-                        .ignoresSafeArea()
                     }
-                    .ignoresSafeArea()
                 }
+                .scrollTargetBehavior(.paging)
+                .ignoresSafeArea()
             }
-            .navigationTitle("Community")
-            .navigationBarTitleDisplayMode(.inline)
         }
         .task {
             await loadReels()
@@ -131,94 +119,88 @@ struct CommunityReelView: View {
     @State private var isOwner = false
     @State private var showDeleteButton = false
     
-    private var safeAreaBottom: CGFloat {
-        UIApplication.shared.keyWindow?.safeAreaInsets.bottom ?? 0
-    }
-    
     var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                Color.black.ignoresSafeArea()
+        ZStack {
+            Color.black.ignoresSafeArea()
                 
-                if let player = player {
-                    CustomVideoPlayer(player: player)
-                        .aspectRatio(9/16, contentMode: .fit)
-                        .frame(maxWidth: geometry.size.width, maxHeight: geometry.size.height)
-                        .onTapGesture {
-                            if isPlaying {
-                                player.pause()
-                            } else {
-                                player.play()
-                            }
-                            isPlaying.toggle()
+            if let player = player {
+                CommunityVideoPlayer(player: player)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        if isPlaying {
+                            player.pause()
+                        } else {
+                            player.play()
                         }
-                        .onLongPressGesture(minimumDuration: 0.5) {
-                            if isOwner {
-                                withAnimation(.spring()) {
-                                    showDeleteButton.toggle()
+                        isPlaying.toggle()
+                    }
+                    .onLongPressGesture(minimumDuration: 0.5) {
+                        if isOwner {
+                            withAnimation(.spring()) {
+                                showDeleteButton.toggle()
+                            }
+                        }
+                    }
+            }
+                
+            if isLoading {
+                ProgressView()
+                    .progressViewStyle(.circular)
+                    .tint(.white)
+                    .scaleEffect(1.5)
+            }
+                
+            // Overlay Controls
+            VStack {
+                Spacer()
+                    
+                // Delete button overlay (centered)
+                if showDeleteButton && isOwner {
+                    Button(action: { showDeleteAlert = true }) {
+                        VStack(spacing: 12) {
+                            Image(systemName: "trash.circle.fill")
+                                .font(.system(size: 50))
+                                .symbolRenderingMode(.palette)
+                                .foregroundStyle(.white, .red)
+                            Text("Delete Reel")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                        }
+                        .padding(20)
+                        .background(Color.black.opacity(0.75))
+                        .cornerRadius(15)
+                    }
+                    .transition(.scale.combined(with: .opacity))
+                }
+                    
+                Spacer()
+                    
+                // Video Info
+                HStack(alignment: .bottom, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        // Participants
+                        if !participants.isEmpty {
+                            HStack {
+                                ForEach(participants) { user in
+                                    Text(user.username)
+                                        .font(.subheadline)
+                                        .foregroundColor(.white.opacity(0.8))
                                 }
                             }
                         }
-                }
-                
-                if isLoading {
-                    ProgressView()
-                        .progressViewStyle(.circular)
-                        .tint(.white)
-                        .scaleEffect(1.5)
-                }
-                
-                // Overlay Controls
-                VStack {
-                    Spacer()
-                    
-                    // Delete button overlay (centered)
-                    if showDeleteButton && isOwner {
-                        Button(action: { showDeleteAlert = true }) {
-                            VStack(spacing: 12) {
-                                Image(systemName: "trash.circle.fill")
-                                    .font(.system(size: 50))
-                                    .symbolRenderingMode(.palette)
-                                    .foregroundStyle(.white, .red)
-                                Text("Delete Reel")
-                                    .font(.headline)
-                                    .foregroundColor(.white)
-                            }
-                            .padding(20)
-                            .background(Color.black.opacity(0.75))
-                            .cornerRadius(15)
-                        }
-                        .transition(.scale.combined(with: .opacity))
                     }
-                    
-                    Spacer()
-                    
-                    // Video Info
-                    HStack(alignment: .bottom, spacing: 16) {
-                        VStack(alignment: .leading, spacing: 8) {
-                            // Participants
-                            if !participants.isEmpty {
-                                HStack {
-                                    ForEach(participants) { user in
-                                        Text(user.username)
-                                            .font(.subheadline)
-                                            .foregroundColor(.white.opacity(0.8))
-                                    }
-                                }
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .padding(.horizontal)
-                    .padding(.bottom, safeAreaBottom + 20)
-                    .background(
-                        LinearGradient(
-                            colors: [.clear, .black.opacity(0.8)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .padding(.horizontal)
+                .padding(.bottom, 20)
+                .background(
+                    LinearGradient(
+                        colors: [.clear, .black.opacity(0.8)],
+                        startPoint: .top,
+                        endPoint: .bottom
                     )
-                }
+                )
             }
         }
         .alert("Delete Reel", isPresented: $showDeleteAlert) {
@@ -290,5 +272,62 @@ struct CommunityReelView: View {
                 participants.append(user)
             }
         }
+    }
+}
+
+// Custom UIView subclass to handle player layer layout
+class PlayerContainerView: UIView {
+    var playerLayer: AVPlayerLayer? {
+        didSet {
+            setNeedsLayout()
+        }
+    }
+    
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        playerLayer?.frame = bounds
+    }
+}
+
+struct CustomVideoPlayerView: UIViewRepresentable {
+    let player: AVPlayer
+    let scaleFactor: CGFloat
+    
+    func makeUIView(context: Context) -> PlayerContainerView {
+        let view = PlayerContainerView(frame: .zero)
+        view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        
+        // Create an AVPlayerLayer for the provided player
+        let playerLayer = AVPlayerLayer(player: player)
+        playerLayer.videoGravity = .resizeAspectFill // fill the view while preserving aspect ratio
+        
+        // Apply the desired transform to zoom out
+        playerLayer.setAffineTransform(CGAffineTransform(scaleX: scaleFactor, y: scaleFactor))
+        
+        // Set the playerLayer's frame to match the view's bounds
+        playerLayer.frame = view.bounds
+        view.layer.addSublayer(playerLayer)
+        view.playerLayer = playerLayer
+        
+        return view
+    }
+    
+    func updateUIView(_ uiView: PlayerContainerView, context: Context) {
+        // Update player and transform
+        if let playerLayer = uiView.playerLayer {
+            playerLayer.player = player
+            playerLayer.videoGravity = .resizeAspectFill
+            playerLayer.frame = uiView.bounds
+            playerLayer.setAffineTransform(CGAffineTransform(scaleX: scaleFactor, y: scaleFactor))
+        }
+    }
+}
+
+struct CommunityVideoPlayer: View {
+    let player: AVPlayer
+    
+    var body: some View {
+        CustomVideoPlayerView(player: player, scaleFactor: 0.7) // Try 0.7 for more zoom out
+            .ignoresSafeArea()
     }
 } 
