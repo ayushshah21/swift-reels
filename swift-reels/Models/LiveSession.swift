@@ -10,6 +10,8 @@ struct LiveSession: Identifiable, Codable {
     let createdAt: Date
     var viewerCount: Int
     var viewers: [String]
+    var workoutTranscript: String?
+    var generatedWorkout: String?
     
     // Firestore encoding
     func toFirestore() -> [String: Any] {
@@ -20,7 +22,9 @@ struct LiveSession: Identifiable, Codable {
             "isActive": isActive,
             "createdAt": Timestamp(date: createdAt),
             "viewerCount": viewerCount,
-            "viewers": viewers
+            "viewers": viewers,
+            "workoutTranscript": workoutTranscript as Any,
+            "generatedWorkout": generatedWorkout as Any
         ]
     }
     
@@ -45,7 +49,9 @@ struct LiveSession: Identifiable, Codable {
             isActive: data["isActive"] as? Bool ?? false,
             createdAt: (data["createdAt"] as? Timestamp)?.dateValue() ?? Date(),
             viewerCount: data["viewerCount"] as? Int ?? 0,
-            viewers: data["viewers"] as? [String] ?? []
+            viewers: data["viewers"] as? [String] ?? [],
+            workoutTranscript: data["workoutTranscript"] as? String,
+            generatedWorkout: data["generatedWorkout"] as? String
         )
     }
 }

@@ -868,19 +868,44 @@ class FirestoreManager: ObservableObject {
     /// Gets all active live sessions
     func getActiveLiveSessions() async throws -> [LiveSession] {
         print("🔍 Fetching active live sessions...")
+        
+        // First, clean up any stale sessions
+        await cleanupStaleSessions()
+        
         let snapshot = try await db.collection("liveSessions")
             .whereField("isActive", isEqualTo: true)
             .getDocuments()
         
-        print("📄 Raw documents found: \(snapshot.documents.count)")
-        for doc in snapshot.documents {
-            print("   Document ID: \(doc.documentID)")
-            print("   Data: \(doc.data())")
-        }
-        
         let sessions = snapshot.documents.compactMap { LiveSession.fromFirestore($0) }
         print("✅ Found \(sessions.count) active sessions")
         return sessions
+    }
+    
+    /// Cleans up any stale live sessions (older than 2 hours)
+    private func cleanupStaleSessions() async {
+        print("🧹 Cleaning up stale live sessions...")
+        
+        do {
+            // Get sessions that are still marked as active but are older than 2 hours
+            let twoHoursAgo = Date().addingTimeInterval(-7200) // 2 hours in seconds
+            let snapshot = try await db.collection("liveSessions")
+                .whereField("isActive", isEqualTo: true)
+                .whereField("createdAt", isLessThan: Timestamp(date: twoHoursAgo))
+                .getDocuments()
+            
+            for document in snapshot.documents {
+                try await document.reference.updateData(["isActive": false])
+                print("✅ Cleaned up stale session: \(document.documentID)")
+            }
+            
+            if snapshot.documents.isEmpty {
+                print("✅ No stale sessions found")
+            } else {
+                print("✅ Cleaned up \(snapshot.documents.count) stale sessions")
+            }
+        } catch {
+            print("❌ Error cleaning up stale sessions:", error.localizedDescription)
+        }
     }
     
     /// Provides real-time updates for a live session
@@ -903,6 +928,24 @@ class FirestoreManager: ObservableObject {
                 listener.remove()
             }
         }
+    }
+    
+    /// Updates the workout transcript for a live session
+    func updateLiveSessionTranscript(_ sessionId: String, transcript: String) async throws {
+        print("📝 Updating transcript for session: \(sessionId)")
+        try await db.collection("liveSessions").document(sessionId).updateData([
+            "workoutTranscript": transcript
+        ])
+        print("✅ Transcript updated successfully")
+    }
+    
+    /// Updates a live session with the generated workout
+    func updateLiveSessionWorkout(_ sessionId: String, workout: String) async throws {
+        print("📝 Updating live session with workout: \(sessionId)")
+        try await db.collection("liveSessions").document(sessionId).updateData([
+            "generatedWorkout": workout
+        ])
+        print("✅ Workout saved to live session successfully")
     }
     
     // MARK: - Partner Session Operations
@@ -1130,5 +1173,62 @@ class FirestoreManager: ObservableObject {
                 listener.remove()
             }
         }
+    }
+    
+    /// Saves a workout to Firestore
+    func saveWorkout(_ workout: SavedWorkout) async throws -> String {
+        print("💾 Saving workout to Firestore...")
+        print("   Title: \(workout.title)")
+        print("   Type: \(workout.type.rawValue)")
+        print("   Difficulty: \(workout.difficulty)")
+        print("   Duration: \(workout.estimatedDuration) minutes")
+        
+        let docRef = db.collection("savedWorkouts").document()
+        var workoutData = workout.toFirestore()
+        workoutData["id"] = docRef.documentID
+        
+        try await docRef.setData(workoutData)
+        print("✅ Workout saved successfully with ID: \(docRef.documentID)")
+        
+        return docRef.documentID
+    }
+    
+    /// Gets all saved workouts for a user
+    func getSavedWorkouts(userId: String) async throws -> [SavedWorkout] {
+        print("🔄 Fetching saved workouts for user: \(userId)")
+        
+        let snapshot = try await db.collection("savedWorkouts")
+            .whereField("userId", isEqualTo: userId)
+            .order(by: "createdAt", descending: true)
+            .getDocuments()
+        
+        let workouts = snapshot.documents.compactMap { SavedWorkout.fromFirestore($0) }
+        print("✅ Fetched \(workouts.count) saved workouts")
+        
+        return workouts
+    }
+    
+    /// Gets a specific saved workout
+    func getSavedWorkout(_ workoutId: String) async throws -> SavedWorkout? {
+        print("🔄 Fetching saved workout: \(workoutId)")
+        
+        let doc = try await db.collection("savedWorkouts").document(workoutId).getDocument()
+        let workout = SavedWorkout.fromFirestore(doc)
+        
+        if workout != nil {
+            print("✅ Fetched workout successfully")
+        } else {
+            print("❌ Workout not found")
+        }
+        
+        return workout
+    }
+    
+    /// Deletes a saved workout
+    func deleteSavedWorkout(_ workoutId: String) async throws {
+        print("🗑️ Deleting saved workout: \(workoutId)")
+        
+        try await db.collection("savedWorkouts").document(workoutId).delete()
+        print("✅ Workout deleted successfully")
     }
 } 

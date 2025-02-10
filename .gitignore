@@ -94,3 +94,4 @@ swift-reels/Models/Secrets.swift
 
 # Google Services
 GoogleService-Info.plist
+swift-reels/Models/Config.swift
