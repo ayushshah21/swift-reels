@@ -107,11 +107,31 @@ struct ProfileView: View {
                             HStack {
                                 Image(systemName: "bookmark.fill")
                                     .font(.title3)
-                                Text("Saved Workouts")
+                                Text("Saved Reels")
                                     .fontWeight(.medium)
                                 Spacer()
                                 Text("\(savedVideos.count)")
                                     .foregroundColor(.gray)
+                                Image(systemName: "chevron.right")
+                                    .foregroundColor(.gray)
+                            }
+                            .padding()
+                            .background(cardBackground)
+                            .cornerRadius(15)
+                        }
+                        .foregroundColor(.primary)
+                        .padding(.horizontal)
+                        
+                        // Saved Workouts Button
+                        NavigationLink {
+                            SavedWorkoutsView()
+                        } label: {
+                            HStack {
+                                Image(systemName: "dumbbell.fill")
+                                    .font(.title3)
+                                Text("Saved Workouts")
+                                    .fontWeight(.medium)
+                                Spacer()
                                 Image(systemName: "chevron.right")
                                     .foregroundColor(.gray)
                             }
@@ -297,7 +317,7 @@ struct SavedVideosView: View {
                     }
                 }
             }
-            .navigationTitle("Saved Workouts")
+            .navigationTitle("Saved Reels")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {

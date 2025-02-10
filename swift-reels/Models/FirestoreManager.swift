@@ -1193,16 +1193,52 @@ class FirestoreManager: ObservableObject {
         return docRef.documentID
     }
     
+    /// Saves a workout from a live stream for a user
+    func saveWorkoutFromLiveStream(title: String, workoutPlan: String, type: WorkoutType, difficulty: String, equipment: [String], estimatedDuration: Int, sourceSessionId: String?) async throws -> String {
+        guard let userId = Auth.auth().currentUser?.uid else {
+            throw NSError(domain: "FirestoreManager", code: 1, userInfo: [NSLocalizedDescriptionKey: "User not authenticated"])
+        }
+        
+        print("💾 Saving workout from live stream...")
+        print("   Title: \(title)")
+        print("   Type: \(type.rawValue)")
+        print("   Difficulty: \(difficulty)")
+        print("   Duration: \(estimatedDuration) minutes")
+        
+        let workout = SavedWorkout(
+            id: nil,
+            userId: userId,
+            title: title,
+            workoutPlan: workoutPlan,
+            createdAt: Date(),
+            sourceSessionId: sourceSessionId,
+            type: type,
+            difficulty: difficulty,
+            equipment: equipment,
+            estimatedDuration: estimatedDuration
+        )
+        
+        let docRef = db.collection("savedWorkouts").document()
+        var workoutData = workout.toFirestore()
+        workoutData["id"] = docRef.documentID
+        
+        try await docRef.setData(workoutData)
+        print("✅ Workout saved successfully with ID: \(docRef.documentID)")
+        
+        return docRef.documentID
+    }
+    
     /// Gets all saved workouts for a user
     func getSavedWorkouts(userId: String) async throws -> [SavedWorkout] {
         print("🔄 Fetching saved workouts for user: \(userId)")
         
         let snapshot = try await db.collection("savedWorkouts")
             .whereField("userId", isEqualTo: userId)
-            .order(by: "createdAt", descending: true)
             .getDocuments()
         
         let workouts = snapshot.documents.compactMap { SavedWorkout.fromFirestore($0) }
+            .sorted { $0.createdAt > $1.createdAt } // Sort in memory instead
+        
         print("✅ Fetched \(workouts.count) saved workouts")
         
         return workouts
