@@ -1267,4 +1267,97 @@ class FirestoreManager: ObservableObject {
         try await db.collection("savedWorkouts").document(workoutId).delete()
         print("✅ Workout deleted successfully")
     }
+    
+    // MARK: - Quiz Score Operations
+    
+    /// Updates a user's quiz score after completing a quiz
+    func updateUserQuizScore(userId: String, quiz: WorkoutQuiz, correctAnswers: Int) async throws {
+        print("📊 Updating quiz score for user: \(userId)")
+        print("   Correct answers: \(correctAnswers)")
+        print("   Total questions: \(quiz.questions.count)")
+        
+        let scoreRef = db.collection("quizScores").document(userId)
+        
+        try await db.runTransaction { [weak self] transaction, errorPointer in
+            guard let self = self else { return nil }
+            
+            // Get current user data for username
+            let userDoc = try? transaction.getDocument(self.db.collection("users").document(userId))
+            guard let userData = userDoc?.data(),
+                  let username = userData["username"] as? String else {
+                print("❌ Could not find user data")
+                return nil
+            }
+            
+            // Get current score data if exists
+            let scoreDoc = try? transaction.getDocument(scoreRef)
+            let currentData = scoreDoc?.data()
+            
+            let currentTotalQuizzes = currentData?["totalQuizzesTaken"] as? Int ?? 0
+            let currentTotalCorrect = currentData?["totalCorrectAnswers"] as? Int ?? 0
+            
+            // Calculate new values
+            let newTotalQuizzes = currentTotalQuizzes + 1
+            let newTotalCorrect = currentTotalCorrect + correctAnswers
+            let newAverageScore = Double(newTotalCorrect) / (Double(newTotalQuizzes) * Double(quiz.questions.count))
+            
+            // Get profile image URL if exists
+            let profileImageURLString = userData["profileImageURL"] as? String
+            
+            // Create new score data
+            var scoreData: [String: Any] = [
+                "userId": userId,
+                "username": username,
+                "totalQuizzesTaken": newTotalQuizzes,
+                "totalCorrectAnswers": newTotalCorrect,
+                "averageScore": newAverageScore,
+                "lastQuizDate": Timestamp(date: Date())
+            ]
+            
+            if let urlString = profileImageURLString {
+                scoreData["profileImageURL"] = urlString
+            }
+            
+            // Update or create the document
+            transaction.setData(scoreData, forDocument: scoreRef, merge: true)
+            
+            print("✅ Quiz score updated successfully")
+            print("   New total quizzes: \(newTotalQuizzes)")
+            print("   New total correct: \(newTotalCorrect)")
+            print("   New average score: \(newAverageScore)")
+            
+            return nil
+        }
+    }
+    
+    /// Gets the global leaderboard
+    func getLeaderboard(limit: Int = 50) async throws -> [UserQuizScore] {
+        print("🏆 Fetching global leaderboard...")
+        
+        let snapshot = try await db.collection("quizScores")
+            .order(by: "averageScore", descending: true)
+            .limit(to: limit)
+            .getDocuments()
+        
+        let scores = snapshot.documents.compactMap { UserQuizScore.fromFirestore($0) }
+        print("✅ Fetched \(scores.count) leaderboard entries")
+        
+        return scores
+    }
+    
+    /// Gets a user's quiz score
+    func getUserQuizScore(userId: String) async throws -> UserQuizScore? {
+        print("🔍 Fetching quiz score for user: \(userId)")
+        
+        let doc = try await db.collection("quizScores").document(userId).getDocument()
+        let score = UserQuizScore.fromFirestore(doc)
+        
+        if score != nil {
+            print("✅ Found quiz score")
+        } else {
+            print("ℹ️ No quiz score found for user")
+        }
+        
+        return score
+    }
 } 

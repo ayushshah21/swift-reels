@@ -3,6 +3,7 @@ import FirebaseAuth
 
 struct SavedWorkoutDetailView: View {
     let workout: SavedWorkout
+    @State private var showQuiz = false
     
     var body: some View {
         ScrollView {
@@ -34,6 +35,23 @@ struct SavedWorkoutDetailView: View {
                 .background(Color(.secondarySystemBackground))
                 .cornerRadius(12)
                 
+                // Take Quiz Button
+                Button(action: {
+                    showQuiz = true
+                }) {
+                    HStack {
+                        Image(systemName: "questionmark.circle.fill")
+                        Text("Take Quiz")
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                    }
+                    .padding()
+                    .background(Color.blue)
+                    .foregroundColor(.white)
+                    .cornerRadius(12)
+                }
+                .padding(.horizontal)
+                
                 // Workout Plan
                 Text("Workout Plan")
                     .font(.headline)
@@ -48,6 +66,11 @@ struct SavedWorkoutDetailView: View {
         }
         .navigationTitle(workout.title)
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showQuiz) {
+            NavigationStack {
+                QuizView(workout: workout)
+            }
+        }
     }
 }
 

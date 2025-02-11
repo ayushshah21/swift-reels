@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		9E1755F27A51623B4CA0EC3A /* Pods_swift_reelsTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4E42AD114CD1D0AC82D8575A /* Pods_swift_reelsTests.framework */; };
+		C87AABD02D57F863006C7F1D /* OpenAI in Frameworks */ = {isa = PBXBuildFile; productRef = C87AABCF2D57F863006C7F1D /* OpenAI */; };
 		C88258652D526D5500883F12 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = C88258642D526D5500883F12 /* FirebaseAnalytics */; };
 		C88258672D526D5500883F12 /* FirebaseAnalyticsWithoutAdIdSupport in Frameworks */ = {isa = PBXBuildFile; productRef = C88258662D526D5500883F12 /* FirebaseAnalyticsWithoutAdIdSupport */; };
 		C88258692D526D5500883F12 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = C88258682D526D5500883F12 /* FirebaseAuth */; };
@@ -97,6 +98,7 @@
 				C882587B2D52B26600883F12 /* FirebaseAnalyticsOnDeviceConversion in Frameworks */,
 				C8E09C532D5268230038BA5B /* FirebaseAuth in Frameworks */,
 				C88258832D52B26600883F12 /* FirebaseStorage in Frameworks */,
+				C87AABD02D57F863006C7F1D /* OpenAI in Frameworks */,
 				C882587F2D52B26600883F12 /* FirebaseAuth in Frameworks */,
 				C88258672D526D5500883F12 /* FirebaseAnalyticsWithoutAdIdSupport in Frameworks */,
 				C8E09C572D5268230038BA5B /* FirebaseStorage in Frameworks */,
@@ -257,6 +259,7 @@
 			packageReferences = (
 				C88258632D526D5500883F12 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 				C89EA0352D5433D60038A7FE /* XCRemoteSwiftPackageReference "AgoraRtcEngine_iOS" */,
+				C87AABCE2D57F863006C7F1D /* XCRemoteSwiftPackageReference "OpenAI" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = C89BB0D52D51C004002CB01B /* Products */;
@@ -722,6 +725,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		C87AABCE2D57F863006C7F1D /* XCRemoteSwiftPackageReference "OpenAI" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/MacPaw/OpenAI.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.3.2;
+			};
+		};
 		C88258632D526D5500883F12 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/firebase/firebase-ios-sdk.git";
@@ -749,6 +760,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		C87AABCF2D57F863006C7F1D /* OpenAI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C87AABCE2D57F863006C7F1D /* XCRemoteSwiftPackageReference "OpenAI" */;
+			productName = OpenAI;
+		};
 		C88258642D526D5500883F12 /* FirebaseAnalytics */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = C88258632D526D5500883F12 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;

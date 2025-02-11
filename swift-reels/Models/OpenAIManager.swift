@@ -84,7 +84,7 @@ class OpenAIManager: ObservableObject {
         ]
         
         let parameters: [String: Any] = [
-            "model": "gpt-4",
+            "model": "gpt-4o-mini",
             "messages": messages,
             "temperature": 0.7,
             "max_tokens": 1000
@@ -159,7 +159,7 @@ class OpenAIManager: ObservableObject {
         ]
         
         let parameters: [String: Any] = [
-            "model": "gpt-4",
+            "model": "gpt-4o-mini",
             "messages": messages,
             "temperature": 0.7,
             "max_tokens": 1000
@@ -236,6 +236,89 @@ class OpenAIManager: ObservableObject {
             equipment: equipment,
             estimatedDuration: duration,
             workoutPlan: workoutPlan
+        )
+    }
+    
+    func generateQuiz(from workout: SavedWorkout) async throws -> WorkoutQuiz {
+        isProcessing = true
+        defer { isProcessing = false }
+        
+        let systemPrompt = """
+        You are a fitness expert. Generate a quiz about the given workout plan to test understanding of the exercises, form, and safety.
+        Create 5 multiple-choice questions. Each question should have 4 options with exactly one correct answer.
+        
+        Format your response in this exact structure:
+        {
+          "questions": [
+            {
+              "question": "Question text here",
+              "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+              "correctAnswer": 0  // Index of correct answer (0-3)
+            }
+          ]
+        }
+        
+        Focus on:
+        1. Proper form and technique
+        2. Safety considerations
+        3. Understanding the workout structure
+        4. Equipment usage (if any)
+        5. Exercise benefits and muscle groups targeted
+        
+        Keep questions clear and unambiguous. Ensure all options are plausible but only one is correct.
+        """
+        
+        let url = URL(string: "https://api.openai.com/v1/chat/completions")!
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(APIConfig.openAIAPIKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let messages = [
+            ["role": "system", "content": systemPrompt],
+            ["role": "user", "content": "Generate a quiz for this workout:\n\(workout.workoutPlan)"]
+        ]
+        
+        let parameters: [String: Any] = [
+            "model": "gpt-4o-mini",
+            "messages": messages,
+            "temperature": 0.7,
+            "max_tokens": 1000
+        ]
+        
+        request.httpBody = try? JSONSerialization.data(withJSONObject: parameters)
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        guard
+            let httpResponse = response as? HTTPURLResponse,
+            httpResponse.statusCode == 200
+        else {
+            throw NSError(domain: "OpenAIManager",
+                          code: -1,
+                          userInfo: [NSLocalizedDescriptionKey: "Invalid response from OpenAI"])
+        }
+        
+        guard
+            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let choices = json["choices"] as? [[String: Any]],
+            let firstChoice = choices.first,
+            let message = firstChoice["message"] as? [String: Any],
+            let content = message["content"] as? String,
+            let jsonData = content.data(using: .utf8),
+            let quizResponse = try? JSONDecoder().decode(QuizResponse.self, from: jsonData)
+        else {
+            throw NSError(domain: "OpenAIManager",
+                          code: -1,
+                          userInfo: [NSLocalizedDescriptionKey: "Could not parse quiz response"])
+        }
+        
+        return WorkoutQuiz(
+            id: nil,
+            workoutId: workout.id ?? "",
+            questions: quizResponse.questions,
+            createdAt: Date()
         )
     }
 }

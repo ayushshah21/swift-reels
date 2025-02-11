@@ -122,24 +122,46 @@ struct ProfileView: View {
                         .foregroundColor(.primary)
                         .padding(.horizontal)
                         
-                        // Saved Workouts Button
-                        NavigationLink {
-                            SavedWorkoutsView()
-                        } label: {
-                            HStack {
-                                Image(systemName: "dumbbell.fill")
-                                    .font(.title3)
-                                Text("Saved Workouts")
-                                    .fontWeight(.medium)
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .foregroundColor(.gray)
+                        // Menu Section
+                        VStack(spacing: 12) {
+                            // Quiz Leaderboard Button
+                            NavigationLink {
+                                LeaderboardView()
+                            } label: {
+                                HStack {
+                                    Image(systemName: "trophy.fill")
+                                        .font(.title3)
+                                    Text("Quiz Leaderboard")
+                                        .fontWeight(.medium)
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .foregroundColor(.gray)
+                                }
+                                .padding()
+                                .background(cardBackground)
+                                .cornerRadius(15)
                             }
-                            .padding()
-                            .background(cardBackground)
-                            .cornerRadius(15)
+                            .foregroundColor(.primary)
+                            
+                            // Saved Workouts Button
+                            NavigationLink {
+                                SavedWorkoutsView()
+                            } label: {
+                                HStack {
+                                    Image(systemName: "dumbbell.fill")
+                                        .font(.title3)
+                                    Text("Saved Workouts")
+                                        .fontWeight(.medium)
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .foregroundColor(.gray)
+                                }
+                                .padding()
+                                .background(cardBackground)
+                                .cornerRadius(15)
+                            }
+                            .foregroundColor(.primary)
                         }
-                        .foregroundColor(.primary)
                         .padding(.horizontal)
                         
                         // Upload Button
