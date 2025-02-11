@@ -1000,14 +1000,61 @@ class FirestoreManager: ObservableObject {
     func getAvailablePartnerSessions() async throws -> [PartnerSession] {
         print("🔍 Fetching available partner sessions...")
         
+        // First, clean up any stale sessions
+        await cleanupStalePartnerSessions()
+        
         let snapshot = try await db.collection("partnerSessions")
             .whereField("isActive", isEqualTo: true)
             .whereField("status", isEqualTo: PartnerSession.SessionStatus.waiting.rawValue)
+            .order(by: "createdAt", descending: true)  // Get newest first
             .getDocuments()
         
         let sessions = snapshot.documents.compactMap { PartnerSession.fromFirestore($0) }
         print("✅ Found \(sessions.count) available sessions")
         return sessions
+    }
+    
+    /// Cleans up any stale partner sessions (older than 30 minutes or abandoned)
+    private func cleanupStalePartnerSessions() async {
+        print("🧹 Cleaning up stale partner sessions...")
+        
+        do {
+            // Get sessions that are still marked as active but are:
+            // 1. Older than 30 minutes
+            // 2. Still in waiting status (no partner joined)
+            let thirtyMinutesAgo = Date().addingTimeInterval(-1800) // 30 minutes in seconds
+            
+            // Query structured to match the existing composite index
+            let snapshot = try await db.collection("partnerSessions")
+                .whereField("isActive", isEqualTo: true)
+                .whereField("status", isEqualTo: PartnerSession.SessionStatus.waiting.rawValue)
+                .whereField("createdAt", isLessThan: Timestamp(date: thirtyMinutesAgo))
+                .order(by: "createdAt", descending: false)  // Match index ascending order
+                .getDocuments()
+            
+            for document in snapshot.documents {
+                try await document.reference.updateData([
+                    "isActive": false,
+                    "status": PartnerSession.SessionStatus.ended.rawValue
+                ])
+                print("✅ Cleaned up stale session: \(document.documentID)")
+            }
+            
+            if snapshot.documents.isEmpty {
+                print("✅ No stale partner sessions found")
+            } else {
+                print("✅ Cleaned up \(snapshot.documents.count) stale partner sessions")
+            }
+        } catch let error as NSError {
+            if error.domain == "FIRFirestoreErrorDomain" && error.code == 9 {
+                // Index error - provide helpful message
+                print("❌ Missing required index for cleanup query.")
+                print("ℹ️ Please create the index using this link:")
+                print("https://console.firebase.google.com/v1/r/project/swift-reels-97d1e/firestore/indexes?create_composite=Cllwcm9qZWN0cy9zd2lmdC1yZWVscy05N2QxZS9kYXRhYmFzZXMvKGRlZmF1bHQpL2NvbGxlY3Rpb25Hcm91cHMvcGFydG5lclNlc3Npb25zL2luZGV4ZXMvXxABGgwKCGlzQWN0aXZlEAEaCgoGc3RhdHVzEAEaDQoJY3JlYXRlZEF0EAEaDAoIX19uYW1lX18QAQ")
+            } else {
+                print("❌ Error cleaning up stale partner sessions:", error.localizedDescription)
+            }
+        }
     }
     
     /// Gets a specific partner session
@@ -1314,7 +1361,8 @@ class FirestoreManager: ObservableObject {
                 "lastQuizDate": Timestamp(date: Date())
             ]
             
-            if let urlString = profileImageURLString {
+            // Only add profileImageURL if it's a valid URL string
+            if let urlString = profileImageURLString, URL(string: urlString) != nil {
                 scoreData["profileImageURL"] = urlString
             }
             
