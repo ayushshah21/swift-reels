@@ -201,4 +201,27 @@ struct VideoModel: Identifiable, Equatable {
             trainer: "Lisa Flex"
         )
     ]
+}
+
+struct SubtitleSegment: Codable, Identifiable {
+    var id: String { "\(startTime)-\(endTime)" }
+    let startTime: TimeInterval
+    let endTime: TimeInterval
+    let text: String
+}
+
+struct VideoSubtitles: Codable, Identifiable {
+    let id: String  // Same as video ID
+    let segments: [SubtitleSegment]
+    let isComplete: Bool
+    let lastUpdated: Date
+    
+    static func empty(for videoId: String) -> VideoSubtitles {
+        VideoSubtitles(
+            id: videoId,
+            segments: [],
+            isComplete: false,
+            lastUpdated: Date()
+        )
+    }
 } 

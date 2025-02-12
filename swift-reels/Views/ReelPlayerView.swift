@@ -159,6 +159,8 @@ struct ReelPlayerView: View {
     @State private var errorMessage: String?
     @State private var showHeartAnimation = false
     @State private var showDeleteOptions = false
+    @State private var subtitles: VideoSubtitles?
+    @State private var currentSubtitleText: String = ""
     @GestureState private var isDetectingLongPress = false
     
     private var safeAreaBottom: CGFloat {
@@ -204,7 +206,7 @@ struct ReelPlayerView: View {
                     .onDisappear {
                         pauseAndReset()
                     }
-                    // Add long press gesture for delete option
+                    // Remove subtitle overlay but keep subtitle processing
                     .simultaneousGesture(
                         LongPressGesture(minimumDuration: 0.5)
                             .updating($isDetectingLongPress) { currentState, gestureState, _ in
@@ -439,6 +441,27 @@ struct ReelPlayerView: View {
             } else {
                 print("❌ Could not get current user ID for ownership check")
             }
+            
+            // Load subtitles when view appears
+            do {
+                subtitles = try await firestoreManager.getSubtitles(for: video.id)
+                print("✅ Loaded subtitles for video: \(video.id)")
+                
+                // Debug print the loaded subtitles
+                if let subtitles = subtitles {
+                    print("📝 Found \(subtitles.segments.count) subtitle segments:")
+                    for segment in subtitles.segments {
+                        print("   🔤 \(String(format: "%.1f", segment.startTime))-\(String(format: "%.1f", segment.endTime)): \(segment.text)")
+                    }
+                    
+                    // Start observing time for subtitles if we have them
+                    startSubtitleObservation()
+                } else {
+                    print("⚠️ No subtitles found for video")
+                }
+            } catch {
+                print("❌ Error loading subtitles: \(error.localizedDescription)")
+            }
         }
         .onDisappear {
             // Remove all observers
@@ -526,6 +549,36 @@ struct ReelPlayerView: View {
                 await MainActor.run {
                     errorMessage = error.localizedDescription
                 }
+            }
+        }
+    }
+    
+    private func startSubtitleObservation() {
+        guard let player = localPlayer, let subtitles = subtitles else {
+            print("⚠️ Cannot start subtitle observation: player or subtitles missing")
+            return
+        }
+        
+        print("🎬 Starting subtitle observation with \(subtitles.segments.count) segments")
+        
+        // Create time observer
+        let interval = CMTime(seconds: 0.1, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
+        player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { time in
+            let currentTime = time.seconds
+            
+            // Find the current subtitle segment
+            if let currentSegment = subtitles.segments.first(where: { segment in
+                currentTime >= segment.startTime && currentTime <= segment.endTime
+            }) {
+                if currentSegment.text != currentSubtitleText {
+                    print("🔤 Showing subtitle at \(String(format: "%.1f", currentTime)): \(currentSegment.text)")
+                }
+                currentSubtitleText = currentSegment.text
+            } else {
+                if !currentSubtitleText.isEmpty {
+                    print("🔤 Clearing subtitle at \(String(format: "%.1f", currentTime))")
+                }
+                currentSubtitleText = ""
             }
         }
     }

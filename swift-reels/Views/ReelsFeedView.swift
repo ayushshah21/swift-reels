@@ -2,123 +2,201 @@ import SwiftUI
 import FirebaseFirestore
 import AVKit
 
+// Extracted ReelItem view to simplify the main view hierarchy
+private struct ReelItem: View {
+    let video: VideoModel
+    let isVisible: Bool
+    let onAppear: () -> Void
+    let onVisibilityChanged: (Bool) -> Void
+    @StateObject private var playerManager = VideoPlayerManager.shared
+    
+    var body: some View {
+        GeometryReader { geometry in
+            let frame = geometry.frame(in: .global)
+            let isCurrentlyVisible = isVideoVisible(frame)
+            
+            ReelPlayerView(
+                video: video,
+                isVisible: isVisible && isCurrentlyVisible
+            )
+            .frame(width: geometry.size.width, height: geometry.size.height)
+            .onChange(of: isCurrentlyVisible) { newValue in
+                onVisibilityChanged(newValue)
+            }
+            .onAppear {
+                onAppear()
+            }
+        }
+        .frame(height: UIScreen.main.bounds.height)
+    }
+    
+    private func isVideoVisible(_ frame: CGRect) -> Bool {
+        let minY = frame.minY
+        let maxY = frame.maxY
+        let screenHeight = UIScreen.main.bounds.height
+        return minY >= -50 && maxY <= screenHeight + 50
+    }
+}
+
 struct ReelsFeedView: View {
     @State private var currentIndex = 0
     @State private var displayedVideos: [VideoModel] = []
     @State private var selectedWorkoutType: WorkoutType = .all
     @StateObject private var playerManager = VideoPlayerManager.shared
     @StateObject private var firestoreManager = FirestoreManager.shared
+    @StateObject private var reelQuizManager = ReelQuizManager.shared
     @State private var isLoadingMore = false
     @State private var hasMoreVideos = true
     @State private var visibleVideoId: String? = nil
-    private let videosPerPage = 5 // Increased for better pagination
-    
-    private func isVideoVisible(_ frame: CGRect) -> Bool {
-        let minY = frame.minY
-        let maxY = frame.maxY
-        let screenHeight = UIScreen.main.bounds.height
-        
-        return minY >= -50 && maxY <= screenHeight + 50
-    }
+    private let videosPerPage = 5
     
     var body: some View {
         ZStack(alignment: .top) {
             if displayedVideos.isEmpty {
-                // Show loading or empty state
-                VStack {
-                    Spacer()
-                    if isLoadingMore {
-                        ProgressView()
-                            .scaleEffect(1.5)
-                    } else {
-                        Text("No videos found")
-                            .foregroundColor(.gray)
-                    }
-                    Spacer()
-                }
+                emptyStateView
             } else {
-                // Main Content
-                ScrollView(.vertical, showsIndicators: false) {
-                    LazyVStack(spacing: 0) {
-                        ForEach(displayedVideos) { video in
-                            GeometryReader { geometry in
-                                let frame = geometry.frame(in: .global)
-                                let isCurrentlyVisible = isVideoVisible(frame)
-                                
-                                ReelPlayerView(
-                                    video: video,
-                                    isVisible: isCurrentlyVisible && visibleVideoId == video.id
-                                )
-                                .frame(width: geometry.size.width, height: geometry.size.height)
-                                .onChange(of: isCurrentlyVisible) { newValue in
-                                    if newValue {
-                                        visibleVideoId = video.id
-                                    } else if visibleVideoId == video.id {
-                                        visibleVideoId = nil
-                                    }
-                                }
-                                .task {
-                                    if let nextIndex = displayedVideos.firstIndex(of: video).map({ $0 + 1 }),
-                                       nextIndex < displayedVideos.count {
-                                        Task.detached {
-                                            await playerManager.preloadVideo(url: displayedVideos[nextIndex].videoURL)
-                                        }
-                                    }
-                                }
-                                .onAppear {
-                                    if let index = displayedVideos.firstIndex(of: video) {
-                                        currentIndex = index
-                                        // Check if we need to load more videos
-                                        if index >= displayedVideos.count - 2 && hasMoreVideos && !isLoadingMore {
-                                            Task {
-                                                await loadMoreVideos()
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            .frame(height: UIScreen.main.bounds.height)
-                        }
-                        
-                        if isLoadingMore {
-                            ProgressView()
-                                .frame(height: 50)
-                                .padding()
-                        }
-                    }
-                }
-                .scrollTargetBehavior(.paging)
-                .scrollDisabled(false)
-                .scrollDismissesKeyboard(.immediately)
-                .scrollIndicators(.hidden)
-                .ignoresSafeArea()
+                mainContentView
             }
             
-            // Filter Bar Overlay
-            FilterBar(selectedCategory: $selectedWorkoutType)
-                .padding(.top, 2)
-                .background(
-                    LinearGradient(
-                        colors: [Color.black.opacity(0.3), .clear],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                    .frame(height: 100)
-                    .ignoresSafeArea(edges: .top)
-                )
-                .ignoresSafeArea(edges: .horizontal)
+            filterBarOverlay
+        }
+        .sheet(isPresented: $reelQuizManager.shouldShowQuiz, onDismiss: {
+            // Resume video playback when quiz is dismissed
+            if let visibleId = visibleVideoId,
+               let video = displayedVideos.first(where: { $0.id == visibleId }) {
+                Task {
+                    await playerManager.player(for: video.videoURL).play()
+                }
+            }
+        }) {
+            if let quiz = reelQuizManager.currentQuiz {
+                ReelQuizView(quiz: quiz)
+            }
+        }
+        .onChange(of: reelQuizManager.shouldShowQuiz) { showQuiz in
+            if showQuiz {
+                // Pause video when quiz appears
+                playerManager.stopAllPlayback()
+            }
         }
         .task {
-            // Initial load of videos
             await loadVideos()
         }
         .onChange(of: selectedWorkoutType) { _ in
-            // Reset and reload videos when filter changes
             Task {
                 displayedVideos = []
                 hasMoreVideos = true
                 await loadVideos()
             }
+        }
+        .onAppear {
+            reelQuizManager.setReelsFeedActive(true)
+        }
+        .onDisappear {
+            reelQuizManager.setReelsFeedActive(false)
+        }
+    }
+    
+    private var emptyStateView: some View {
+        VStack {
+            Spacer()
+            if isLoadingMore {
+                ProgressView()
+                    .scaleEffect(1.5)
+            } else {
+                Text("No videos found")
+                    .foregroundColor(.gray)
+            }
+            Spacer()
+        }
+    }
+    
+    private var mainContentView: some View {
+        ScrollView(.vertical, showsIndicators: false) {
+            LazyVStack(spacing: 0) {
+                ForEach(displayedVideos) { video in
+                    ReelItem(
+                        video: video,
+                        isVisible: visibleVideoId == video.id,
+                        onAppear: {
+                            handleVideoAppear(video)
+                        },
+                        onVisibilityChanged: { isVisible in
+                            handleVisibilityChange(video, isVisible: isVisible)
+                        }
+                    )
+                }
+                
+                if isLoadingMore {
+                    ProgressView()
+                        .frame(height: 50)
+                        .padding()
+                }
+            }
+        }
+        .scrollTargetBehavior(.paging)
+        .scrollDisabled(false)
+        .scrollDismissesKeyboard(.immediately)
+        .scrollIndicators(.hidden)
+        .ignoresSafeArea()
+    }
+    
+    private var filterBarOverlay: some View {
+        FilterBar(selectedCategory: $selectedWorkoutType)
+            .padding(.top, 2)
+            .background(
+                LinearGradient(
+                    colors: [Color.black.opacity(0.3), .clear],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: 100)
+                .ignoresSafeArea(edges: .top)
+            )
+            .ignoresSafeArea(edges: .horizontal)
+    }
+    
+    private func handleVideoAppear(_ video: VideoModel) {
+        if let index = displayedVideos.firstIndex(of: video) {
+            currentIndex = index
+            if index >= displayedVideos.count - 2 && hasMoreVideos && !isLoadingMore {
+                Task {
+                    await loadMoreVideos()
+                }
+            }
+        }
+    }
+    
+    private func handleVisibilityChange(_ video: VideoModel, isVisible: Bool) {
+        if isVisible {
+            visibleVideoId = video.id
+            Task {
+                if let subtitles = try? await firestoreManager.getSubtitles(for: video.id) {
+                    // Combine all segment texts into a single transcript
+                    let transcript = subtitles.segments
+                        .map { $0.text }
+                        .joined(separator: " ")
+                    
+                    print("📝 Adding transcript to ReelQuizManager")
+                    print("   Video ID: \(video.id)")
+                    print("   Transcript length: \(transcript.count) characters")
+                    print("   Videos watched since last quiz: \(reelQuizManager.videosWatchedSinceLastQuiz)")
+                    
+                    reelQuizManager.addTranscript(transcript)
+                } else {
+                    print("⚠️ No subtitles found for video \(video.id), skipping quiz generation")
+                }
+            }
+            
+            // Preload next video if available
+            if let nextIndex = displayedVideos.firstIndex(of: video).map({ $0 + 1 }),
+               nextIndex < displayedVideos.count {
+                Task {
+                    await playerManager.preloadVideo(url: displayedVideos[nextIndex].videoURL)
+                }
+            }
+        } else if visibleVideoId == video.id {
+            visibleVideoId = nil
         }
     }
     

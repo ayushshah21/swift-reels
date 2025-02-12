@@ -74,6 +74,14 @@ class FirestoreManager: ObservableObject {
     /// Uploads a video document to Firestore
     func createVideo(_ video: VideoModel) async throws {
         try await db.collection("videos").document(video.id).setData(video.toFirestore())
+        
+        // Start subtitle processing in background after video is created
+        Task.detached {
+            await SpeechRecognitionManager.shared.processVideoSubtitles(
+                videoId: video.id,
+                videoURL: video.videoURL
+            )
+        }
     }
     
     /// Fetches a single video by ID
@@ -1462,5 +1470,53 @@ class FirestoreManager: ObservableObject {
             "title": newTitle
         ])
         print("✅ Workout title updated successfully")
+    }
+    
+    // MARK: - Subtitles
+    
+    private func subtitlesCollection() -> CollectionReference {
+        db.collection("video-subtitles")
+    }
+    
+    func getSubtitles(for videoId: String) async throws -> VideoSubtitles? {
+        let document = try await subtitlesCollection().document(videoId).getDocument()
+        guard let data = document.data(),
+              let segments = data["segments"] as? [[String: Any]],
+              let isComplete = data["isComplete"] as? Bool,
+              let lastUpdated = (data["lastUpdated"] as? Timestamp)?.dateValue() else {
+            return nil
+        }
+        
+        let subtitleSegments = segments.compactMap { segmentData -> SubtitleSegment? in
+            guard let startTime = segmentData["startTime"] as? TimeInterval,
+                  let endTime = segmentData["endTime"] as? TimeInterval,
+                  let text = segmentData["text"] as? String else {
+                return nil
+            }
+            return SubtitleSegment(startTime: startTime, endTime: endTime, text: text)
+        }
+        
+        return VideoSubtitles(
+            id: videoId,
+            segments: subtitleSegments,
+            isComplete: isComplete,
+            lastUpdated: lastUpdated
+        )
+    }
+    
+    func updateSubtitles(_ subtitles: VideoSubtitles) async throws {
+        let data: [String: Any] = [
+            "segments": subtitles.segments.map { segment in
+                [
+                    "startTime": segment.startTime,
+                    "endTime": segment.endTime,
+                    "text": segment.text
+                ]
+            },
+            "isComplete": subtitles.isComplete,
+            "lastUpdated": Timestamp(date: subtitles.lastUpdated)
+        ]
+        
+        try await subtitlesCollection().document(subtitles.id).setData(data, merge: true)
     }
 } 

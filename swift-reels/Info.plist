@@ -3,11 +3,13 @@
 <plist version="1.0">
 	<dict>
 		<key>NSCameraUsageDescription</key>
-		<string>Allow access to camera for live streaming</string>
+		<string>Allow access to camera for recording workout videos and live streaming</string>
 		<key>NSMicrophoneUsageDescription</key>
-		<string>Allow access to microphone for live streaming</string>
+		<string>Allow access to microphone for recording audio in workout videos and live streaming</string>
 		<key>NSSpeechRecognitionUsageDescription</key>
-		<string>Allow speech recognition to record workout instructions during live streams</string>
+		<string>Allow speech recognition to automatically generate subtitles for your workout videos</string>
+		<key>NSTemporaryExceptionAllowsInsecureHTTPLoads</key>
+		<true/>
 		<key>CFBundleURLTypes</key>
 		<array>
 			<dict>
