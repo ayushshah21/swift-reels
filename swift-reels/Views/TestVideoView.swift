@@ -119,19 +119,16 @@ struct TestVideoView: View {
                     // Top controls (close, camera flip)
                     HStack {
                         Button(action: {
-                            Task {
-                                if joinSession != nil {
-                                    if let session = currentSession {
-                                        try? await firestoreManager.endLiveSession(session.id ?? "")
-                                    }
+                            if let session = currentSession {
+                                Task {
+                                    try? await firestoreManager.endLiveSession(session.id ?? "")
                                     agoraManager.leaveChannel()
                                     dismiss()
-                                } else {
-                                    // For broadcaster, use endSession to properly handle workout generation
-                                    Task {
-                                        await endSession()
-                                    }
                                 }
+                            } else {
+                                // If no session yet, just dismiss
+                                agoraManager.leaveChannel()
+                                dismiss()
                             }
                         }) {
                             Image(systemName: "xmark.circle.fill")
@@ -315,7 +312,19 @@ struct TestVideoView: View {
             }
         }
         .onDisappear {
+            // Always cleanup when view disappears
+            if let session = currentSession {
+                Task {
+                    try? await firestoreManager.endLiveSession(session.id ?? "")
+                }
+            }
             agoraManager.leaveChannel()
+            
+            // Stop recording if it was active
+            if isRecordingWorkout {
+                speechManager.stopRecording()
+                isRecordingWorkout = false
+            }
         }
         .onChange(of: speechManager.transcript) { newTranscript in
             // Only update if we're the broadcaster and have an active session

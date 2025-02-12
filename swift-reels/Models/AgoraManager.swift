@@ -47,6 +47,26 @@ class AgoraManager: NSObject, ObservableObject {
         print("✅ Agora engine initialized successfully")
     }
     
+    private func updateVideoSettings() {
+        guard let engine = engine else { return }
+        
+        // Update video encoder configuration
+        let videoConfig = AgoraVideoEncoderConfiguration(
+            size: CGSize(width: 720, height: 1280),
+            frameRate: .fps30,
+            bitrate: AgoraVideoBitrateStandard,
+            orientationMode: .fixedPortrait,
+            mirrorMode: isFrontCamera ? .enabled : .disabled
+        )
+        engine.setVideoEncoderConfiguration(videoConfig)
+        
+        // Update local video canvas if it exists
+        if let canvas = localVideoCanvas {
+            canvas.mirrorMode = isFrontCamera ? .enabled : .disabled
+            engine.setupLocalVideo(canvas)
+        }
+    }
+    
     func setRole(_ role: AgoraClientRole) {
         guard let engine = engine else {
             print("❌ setRole: Engine not initialized")
@@ -61,11 +81,11 @@ class AgoraManager: NSObject, ObservableObject {
             print("📹 Configuring broadcaster settings...")
             // Configure video encoding parameters for broadcasting
             let videoConfig = AgoraVideoEncoderConfiguration(
-                size: CGSize(width: 720, height: 1280), // Portrait mode dimensions for reels
+                size: CGSize(width: 720, height: 1280),
                 frameRate: .fps30,
                 bitrate: AgoraVideoBitrateStandard,
-                orientationMode: .fixedPortrait, // Force portrait mode
-                mirrorMode: .disabled // Disable mirroring
+                orientationMode: .fixedPortrait,
+                mirrorMode: isFrontCamera ? .enabled : .disabled
             )
             engine.setVideoEncoderConfiguration(videoConfig)
             
@@ -103,7 +123,7 @@ class AgoraManager: NSObject, ObservableObject {
         canvas.view = view
         canvas.renderMode = .hidden
         canvas.uid = 0  // Use 0 for local user
-        canvas.mirrorMode = .disabled  // Disable mirroring to fix orientation
+        canvas.mirrorMode = isFrontCamera ? .enabled : .disabled  // Enable mirroring for front camera
         engine.setupLocalVideo(canvas)
         
         // Start preview if broadcaster
@@ -153,6 +173,7 @@ class AgoraManager: NSObject, ObservableObject {
         
         engine.switchCamera()
         isFrontCamera.toggle()
+        updateVideoSettings()  // Update mirroring settings after camera switch
         print("🎥 Switched to \(isFrontCamera ? "front" : "back") camera")
     }
     
