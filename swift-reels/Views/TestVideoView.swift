@@ -385,6 +385,33 @@ struct TestVideoView: View {
                             generatedWorkout = workout
                             isGeneratingWorkout = false
                             print("✅ Retrieved workout from live session")
+                            
+                            // Save workout for viewers
+                            if joinSession != nil {
+                                Task {
+                                    do {
+                                        // Generate a title based on workout type and current date
+                                        let dateFormatter = DateFormatter()
+                                        dateFormatter.dateStyle = .medium
+                                        let title = "Live Stream Workout - \(dateFormatter.string(from: Date()))"
+                                        
+                                        // Save the workout for the viewer
+                                        let workoutId = try await firestoreManager.saveWorkoutFromLiveStream(
+                                            title: title,
+                                            workoutPlan: workout,
+                                            type: .other, // Default to other since we don't have type info
+                                            difficulty: "Intermediate", // Default to intermediate
+                                            equipment: [], // No equipment info available
+                                            estimatedDuration: 30, // Default duration
+                                            sourceSessionId: session.id
+                                        )
+                                        print("✅ Saved workout for viewer with ID: \(workoutId)")
+                                    } catch {
+                                        print("❌ Failed to save workout for viewer:", error.localizedDescription)
+                                        self.error = "Failed to save workout: \(error.localizedDescription)"
+                                    }
+                                }
+                            }
                         } else if updatedSession.workoutTranscript?.isEmpty != false {
                             // Only show no workout message if there was no transcript
                             isGeneratingWorkout = false
