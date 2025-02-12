@@ -10,7 +10,16 @@ struct ReelsFeedView: View {
     @StateObject private var firestoreManager = FirestoreManager.shared
     @State private var isLoadingMore = false
     @State private var hasMoreVideos = true
+    @State private var visibleVideoId: String? = nil
     private let videosPerPage = 5 // Increased for better pagination
+    
+    private func isVideoVisible(_ frame: CGRect) -> Bool {
+        let minY = frame.minY
+        let maxY = frame.maxY
+        let screenHeight = UIScreen.main.bounds.height
+        
+        return minY >= -50 && maxY <= screenHeight + 50
+    }
     
     var body: some View {
         ZStack(alignment: .top) {
@@ -33,31 +42,40 @@ struct ReelsFeedView: View {
                     LazyVStack(spacing: 0) {
                         ForEach(displayedVideos) { video in
                             GeometryReader { geometry in
-                                ReelPlayerView(video: video)
-                                    .frame(width: geometry.size.width, height: geometry.size.height)
-                                    .rotation3DEffect(
-                                        .degrees(0),
-                                        axis: (x: 0, y: 0, z: 0)
-                                    )
-                                    .task {
-                                        if let nextIndex = displayedVideos.firstIndex(of: video).map({ $0 + 1 }),
-                                           nextIndex < displayedVideos.count {
-                                            Task.detached {
-                                                await playerManager.preloadVideo(url: displayedVideos[nextIndex].videoURL)
+                                let frame = geometry.frame(in: .global)
+                                let isCurrentlyVisible = isVideoVisible(frame)
+                                
+                                ReelPlayerView(
+                                    video: video,
+                                    isVisible: isCurrentlyVisible && visibleVideoId == video.id
+                                )
+                                .frame(width: geometry.size.width, height: geometry.size.height)
+                                .onChange(of: isCurrentlyVisible) { newValue in
+                                    if newValue {
+                                        visibleVideoId = video.id
+                                    } else if visibleVideoId == video.id {
+                                        visibleVideoId = nil
+                                    }
+                                }
+                                .task {
+                                    if let nextIndex = displayedVideos.firstIndex(of: video).map({ $0 + 1 }),
+                                       nextIndex < displayedVideos.count {
+                                        Task.detached {
+                                            await playerManager.preloadVideo(url: displayedVideos[nextIndex].videoURL)
+                                        }
+                                    }
+                                }
+                                .onAppear {
+                                    if let index = displayedVideos.firstIndex(of: video) {
+                                        currentIndex = index
+                                        // Check if we need to load more videos
+                                        if index >= displayedVideos.count - 2 && hasMoreVideos && !isLoadingMore {
+                                            Task {
+                                                await loadMoreVideos()
                                             }
                                         }
                                     }
-                                    .onAppear {
-                                        if let index = displayedVideos.firstIndex(of: video) {
-                                            currentIndex = index
-                                            // Check if we need to load more videos
-                                            if index >= displayedVideos.count - 2 && hasMoreVideos && !isLoadingMore {
-                                                Task {
-                                                    await loadMoreVideos()
-                                                }
-                                            }
-                                        }
-                                    }
+                                }
                             }
                             .frame(height: UIScreen.main.bounds.height)
                         }
@@ -70,6 +88,9 @@ struct ReelsFeedView: View {
                     }
                 }
                 .scrollTargetBehavior(.paging)
+                .scrollDisabled(false)
+                .scrollDismissesKeyboard(.immediately)
+                .scrollIndicators(.hidden)
                 .ignoresSafeArea()
             }
             
@@ -113,6 +134,17 @@ struct ReelsFeedView: View {
                 displayedVideos = videos
                 hasMoreVideos = videos.count == videosPerPage
                 isLoadingMore = false
+                
+                // Set the first video as visible immediately
+                if !videos.isEmpty {
+                    visibleVideoId = videos[0].id
+                    // Preload the second video if available
+                    if videos.count > 1 {
+                        Task {
+                            await playerManager.preloadVideo(url: videos[1].videoURL)
+                        }
+                    }
+                }
             }
         } catch {
             print("❌ Error loading videos: \(error.localizedDescription)")

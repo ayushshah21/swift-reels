@@ -22,15 +22,9 @@ class VideoPlayerManager: ObservableObject {
     func player(for url: URL) async -> AVPlayer {
         let urlString = url.absoluteString
         
-        // Stop previous video's audio if different URL
-        if let currentURL = currentPlayingURL, currentURL != urlString {
-            stopAudio(for: URL(string: currentURL)!)
-        }
-        
+        // If we have a cached player, just return it without resetting
         if let existingPlayer = playerCache[urlString] {
             currentPlayingURL = urlString
-            // Reset player state
-            await existingPlayer.seek(to: .zero)
             return existingPlayer
         }
         
@@ -61,6 +55,8 @@ class VideoPlayerManager: ObservableObject {
             try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .moviePlayback)
             try? AVAudioSession.sharedInstance().setActive(true)
             
+            // Cache both asset and player
+            assetCache[urlString] = asset
             playerCache[urlString] = player
             currentPlayingURL = urlString
             return player
@@ -78,27 +74,16 @@ class VideoPlayerManager: ObservableObject {
         let urlString = url.absoluteString
         
         // Skip if already cached
-        guard assetCache[urlString] == nil else {
-            print("⏭️ Asset already cached for: \(url.lastPathComponent)")
+        guard playerCache[urlString] == nil else {
+            print("⏭️ Player already cached for: \(url.lastPathComponent)")
             return
         }
         
         print("🔄 Preloading video: \(url.lastPathComponent)")
-        let asset = AVURLAsset(
-            url: url,
-            options: [
-                AVURLAssetPreferPreciseDurationAndTimingKey: true
-            ]
-        )
         
-        do {
-            // Preload essential properties
-            _ = try await asset.load(.isPlayable, .duration, .preferredTransform)
-            assetCache[urlString] = asset
-            print("✅ Successfully preloaded: \(url.lastPathComponent)")
-        } catch {
-            print("❌ Error preloading video: \(error)")
-        }
+        // Create and cache the full player
+        _ = await player(for: url)
+        print("✅ Successfully preloaded player for: \(url.lastPathComponent)")
     }
     
     func cleanupPlayer(for url: URL) {
@@ -157,10 +142,11 @@ struct ReelPlayerView: View {
     let video: VideoModel
     let isFromSearch: Bool
     let isFromSaved: Bool
+    let isVisible: Bool
     @Environment(\.dismiss) private var dismiss
     @StateObject private var playerManager = VideoPlayerManager.shared
     @StateObject private var firestoreManager = FirestoreManager.shared
-    @State private var player: AVPlayer?
+    @State private var localPlayer: AVPlayer?
     @State private var isPlaying = false
     @State private var isLoading = true
     @State private var showComments = false
@@ -179,10 +165,11 @@ struct ReelPlayerView: View {
         UIApplication.shared.keyWindow?.safeAreaInsets.bottom ?? 0
     }
     
-    init(video: VideoModel, isFromSearch: Bool = false, isFromSaved: Bool = false) {
+    init(video: VideoModel, isFromSearch: Bool = false, isFromSaved: Bool = false, isVisible: Bool = true) {
         self.video = video
         self.isFromSearch = isFromSearch
         self.isFromSaved = isFromSaved
+        self.isVisible = isVisible
         _isBookmarked = State(initialValue: video.isBookmarked)
         _likeCount = State(initialValue: video.likeCount)
         _commentCount = State(initialValue: video.comments)
@@ -192,30 +179,30 @@ struct ReelPlayerView: View {
         ZStack {
             Color.black.ignoresSafeArea()
             
-            if let player = player {
+            if let player = localPlayer {
                 CustomVideoPlayer(player: player)
                     .edgesIgnoringSafeArea(.all)
                     .onTapGesture {
                         if isPlaying {
-                            player.pause()
+                            pause()
                         } else {
-                            player.play()
+                            play()
                         }
-                        isPlaying.toggle()
+                    }
+                    .onChange(of: isVisible) { newValue in
+                        if newValue {
+                            play()
+                        } else {
+                            pause()
+                        }
                     }
                     .onAppear {
-                        // Ensure clean state when view appears
-                        playerManager.stopAllPlayback()
-                        player.seek(to: .zero)
-                        player.play()
-                        isPlaying = true
+                        if isVisible {
+                            play()
+                        }
                     }
                     .onDisappear {
-                        // Ensure cleanup when view disappears
-                        player.pause()
-                        player.seek(to: .zero)
-                        playerManager.stopAudio(for: video.videoURL)
-                        isPlaying = false
+                        pauseAndReset()
                     }
                     // Add long press gesture for delete option
                     .simultaneousGesture(
@@ -401,60 +388,30 @@ struct ReelPlayerView: View {
             }
         })
         .task {
+            // Eagerly load the player as soon as the view is created
             isLoading = true
-            // Initialize player when view appears
-            let player = await playerManager.player(for: video.videoURL)
-            player.actionAtItemEnd = .none
-            player.isMuted = false
+            localPlayer = await playerManager.player(for: video.videoURL)
             
             // Remove any existing observers before adding new one
             NotificationCenter.default.removeObserver(self)
             
             // Add observer for video end
-            NotificationCenter.default.addObserver(
-                forName: .AVPlayerItemDidPlayToEndTime,
-                object: player.currentItem,
-                queue: .main
-            ) { _ in
-                Task {
-                    await player.seek(to: .zero)
-                    player.play()
-                }
-            }
-            
-            // Add observer for interruptions
-            NotificationCenter.default.addObserver(
-                forName: AVAudioSession.interruptionNotification,
-                object: nil,
-                queue: .main
-            ) { notification in
-                guard let userInfo = notification.userInfo,
-                      let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
-                      let type = AVAudioSession.InterruptionType(rawValue: typeValue) else {
-                    return
-                }
-                
-                switch type {
-                case .began:
-                    // Audio interrupted, pause playback
-                    player.pause()
-                    isPlaying = false
-                case .ended:
-                    guard let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt else { return }
-                    let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
-                    if options.contains(.shouldResume) {
-                        // Interruption ended, resume playback
-                        player.play()
-                        isPlaying = true
+            if let player = localPlayer {
+                NotificationCenter.default.addObserver(
+                    forName: .AVPlayerItemDidPlayToEndTime,
+                    object: player.currentItem,
+                    queue: .main
+                ) { _ in
+                    Task {
+                        await player.seek(to: .zero)
+                        if isVisible {
+                            player.play()
+                            isPlaying = true
+                        }
                     }
-                @unknown default:
-                    break
                 }
             }
             
-            self.player = player
-            player.play()
-            isPlaying = true
             isLoading = false
             
             // Check if user has liked and saved this video
@@ -484,14 +441,6 @@ struct ReelPlayerView: View {
             }
         }
         .onDisappear {
-            // Cleanup when view disappears
-            if let player = player {
-                player.pause()
-                Task {
-                    await player.seek(to: .zero)
-                    playerManager.stopAudio(for: video.videoURL)
-                }
-            }
             // Remove all observers
             NotificationCenter.default.removeObserver(self)
         }
@@ -500,6 +449,27 @@ struct ReelPlayerView: View {
                 CommentsView(videoID: video.id)
             }
         }
+    }
+    
+    private func play() {
+        guard let player = localPlayer else { return }
+        player.play()
+        isPlaying = true
+    }
+    
+    private func pause() {
+        guard let player = localPlayer else { return }
+        player.pause()
+        isPlaying = false
+    }
+    
+    private func pauseAndReset() {
+        guard let player = localPlayer else { return }
+        player.pause()
+        Task {
+            await player.seek(to: .zero)
+        }
+        isPlaying = false
     }
     
     private func handleLikeAction() {
