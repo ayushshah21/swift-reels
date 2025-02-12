@@ -1453,4 +1453,14 @@ class FirestoreManager: ObservableObject {
         
         return score
     }
+    
+    /// Updates a workout's title
+    func updateWorkoutTitle(_ workoutId: String, newTitle: String) async throws {
+        print("📝 Updating workout title: \(workoutId)")
+        
+        try await db.collection("savedWorkouts").document(workoutId).updateData([
+            "title": newTitle
+        ])
+        print("✅ Workout title updated successfully")
+    }
 } 

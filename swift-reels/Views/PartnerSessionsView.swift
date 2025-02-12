@@ -10,7 +10,7 @@ struct PartnerSessionsView: View {
     @State private var showCreateSheet = false
     @State private var showPartnerWorkout = false
     @State private var createdSession: PartnerSession?
-    @State private var showCommunityReels = false
+    // @State private var showCommunityReels = false
     
     let timer = Timer.publish(every: 5, on: .main, in: .common).autoconnect()
     
@@ -49,15 +49,15 @@ struct PartnerSessionsView: View {
                 }
                 .toolbar {
                     ToolbarItem(placement: .navigationBarTrailing) {
-                        HStack(spacing: 16) {
+                        // HStack(spacing: 16) {
                             // Community Reels Button
-                            Button(action: {
-                                showCommunityReels = true
-                            }) {
-                                Image(systemName: "video.bubble.left")
-                                    .symbolRenderingMode(.hierarchical)
-                                    .font(.system(size: 18))
-                            }
+                            // Button(action: {
+                            //     showCommunityReels = true
+                            // }) {
+                            //     Image(systemName: "video.bubble.left")
+                            //         .symbolRenderingMode(.hierarchical)
+                            //         .font(.system(size: 18))
+                            // }
                             
                             // Create Session Button
                             Button(action: {
@@ -65,7 +65,7 @@ struct PartnerSessionsView: View {
                             }) {
                                 Image(systemName: "plus")
                             }
-                        }
+                        // }
                     }
                 }
             } else {
@@ -81,15 +81,15 @@ struct PartnerSessionsView: View {
                 }
                 .toolbar {
                     ToolbarItem(placement: .navigationBarTrailing) {
-                        HStack(spacing: 16) {
+                        // HStack(spacing: 16) {
                             // Community Reels Button
-                            Button(action: {
-                                showCommunityReels = true
-                            }) {
-                                Image(systemName: "video.bubble.left")
-                                    .symbolRenderingMode(.hierarchical)
-                                    .font(.system(size: 18))
-                            }
+                            // Button(action: {
+                            //     showCommunityReels = true
+                            // }) {
+                            //     Image(systemName: "video.bubble.left")
+                            //         .symbolRenderingMode(.hierarchical)
+                            //         .font(.system(size: 18))
+                            // }
                             
                             // Create Session Button
                             Button(action: {
@@ -97,7 +97,7 @@ struct PartnerSessionsView: View {
                             }) {
                                 Image(systemName: "plus")
                             }
-                        }
+                        // }
                     }
                 }
             }
@@ -136,18 +136,18 @@ struct PartnerSessionsView: View {
                 PartnerWorkoutView(session: session, isHost: true)
             }
         }
-        .fullScreenCover(isPresented: $showCommunityReels) {
-            NavigationStack {
-                CommunityReelsView()
-                    .toolbar {
-                        ToolbarItem(placement: .navigationBarLeading) {
-                            Button("Done") {
-                                showCommunityReels = false
-                            }
-                        }
-                    }
-            }
-        }
+        // .fullScreenCover(isPresented: $showCommunityReels) {
+        //     NavigationStack {
+        //         CommunityReelsView()
+        //             .toolbar {
+        //                 ToolbarItem(placement: .navigationBarLeading) {
+        //                     Button("Done") {
+        //                         showCommunityReels = false
+        //                     }
+        //                 }
+        //             }
+        //     }
+        // }
     }
     
     private func loadSessions() async {

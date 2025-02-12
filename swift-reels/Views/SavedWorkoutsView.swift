@@ -2,8 +2,20 @@ import SwiftUI
 import FirebaseAuth
 
 struct SavedWorkoutDetailView: View {
-    let workout: SavedWorkout
+    @State private var workout: SavedWorkout
     @State private var showQuiz = false
+    @State private var isEditingTitle = false
+    @State private var editedTitle = ""
+    @State private var showEditError = false
+    @State private var editError: String?
+    @StateObject private var firestoreManager = FirestoreManager.shared
+    @Environment(\.dismiss) private var dismiss
+    @Binding var needsRefresh: Bool
+    
+    init(workout: SavedWorkout, needsRefresh: Binding<Bool>) {
+        _workout = State(initialValue: workout)
+        _needsRefresh = needsRefresh
+    }
     
     var body: some View {
         ScrollView {
@@ -66,9 +78,67 @@ struct SavedWorkoutDetailView: View {
         }
         .navigationTitle(workout.title)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: {
+                    editedTitle = workout.title
+                    isEditingTitle = true
+                }) {
+                    Image(systemName: "pencil")
+                }
+            }
+        }
         .sheet(isPresented: $showQuiz) {
             NavigationStack {
                 QuizView(workout: workout)
+            }
+        }
+        .alert("Edit Title", isPresented: $isEditingTitle) {
+            TextField("Workout Title", text: $editedTitle)
+            Button("Cancel", role: .cancel) {
+                isEditingTitle = false
+            }
+            Button("Save") {
+                updateWorkoutTitle()
+            }
+        }
+        .alert("Error", isPresented: $showEditError) {
+            Button("OK") {
+                editError = nil
+                showEditError = false
+            }
+        } message: {
+            if let error = editError {
+                Text(error)
+            }
+        }
+    }
+    
+    private func updateWorkoutTitle() {
+        guard let workoutId = workout.id else { return }
+        
+        Task {
+            do {
+                try await firestoreManager.updateWorkoutTitle(workoutId, newTitle: editedTitle)
+                await MainActor.run {
+                    workout = SavedWorkout(
+                        id: workout.id,
+                        userId: workout.userId,
+                        title: editedTitle,
+                        workoutPlan: workout.workoutPlan,
+                        createdAt: workout.createdAt,
+                        sourceSessionId: workout.sourceSessionId,
+                        type: workout.type,
+                        difficulty: workout.difficulty,
+                        equipment: workout.equipment,
+                        estimatedDuration: workout.estimatedDuration
+                    )
+                    isEditingTitle = false
+                    needsRefresh = true
+                }
+            } catch {
+                editError = error.localizedDescription
+                showEditError = true
             }
         }
     }
@@ -82,6 +152,7 @@ struct SavedWorkoutsView: View {
     @State private var deleteError: String?
     @State private var showDeleteError = false
     @State private var isDeleting = false
+    @State private var needsRefresh = false
     
     var body: some View {
         Group {
@@ -111,7 +182,7 @@ struct SavedWorkoutsView: View {
             } else {
                 List {
                     ForEach(workouts) { workout in
-                        NavigationLink(destination: SavedWorkoutDetailView(workout: workout)) {
+                        NavigationLink(destination: SavedWorkoutDetailView(workout: workout, needsRefresh: $needsRefresh)) {
                             VStack(alignment: .leading, spacing: 8) {
                                 Text(workout.title)
                                     .font(.headline)
@@ -149,6 +220,14 @@ struct SavedWorkoutsView: View {
         .navigationTitle("Saved Workouts")
         .task {
             await loadWorkouts()
+        }
+        .onChange(of: needsRefresh) { refresh in
+            if refresh {
+                Task {
+                    await loadWorkouts()
+                    needsRefresh = false
+                }
+            }
         }
         .alert("Error Deleting Workout", isPresented: $showDeleteError) {
             Button("OK") {

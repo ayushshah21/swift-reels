@@ -277,8 +277,8 @@ struct PartnerWorkoutView: View {
         await agoraManager.joinChannel(session.channelId)
         
         // Start recording immediately
-        print("🎥 Starting session recording")
-        WorkoutRecorder.shared.startRecording()
+        // print("🎥 Starting session recording")
+        // WorkoutRecorder.shared.startRecording()
         
         // Start listening for session updates
         listenToSessionStatus()
@@ -321,16 +321,16 @@ struct PartnerWorkoutView: View {
                 }
                 
                 // Stop recording when session ends
-                print("⏹️ Session ended, stopping recording")
-                WorkoutRecorder.shared.stopRecording { videoURL in
-                    Task { @MainActor in
-                        if let url = videoURL {
-                            print("✅ Recording saved to: \(url.path)")
-                            recordedVideoURL = url
-                            showPostWorkoutOptions = true
-                        }
-                    }
-                }
+                // print("⏹️ Session ended, stopping recording")
+                // WorkoutRecorder.shared.stopRecording { videoURL in
+                //     Task { @MainActor in
+                //         if let url = videoURL {
+                //             print("✅ Recording saved to: \(url.path)")
+                //             recordedVideoURL = url
+                //             showPostWorkoutOptions = true
+                //         }
+                //     }
+                // }
                 
                 cleanupSession()
                 sessionHasEnded = true
