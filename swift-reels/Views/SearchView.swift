@@ -105,10 +105,27 @@ struct SearchView: View {
         }
         
         do {
-            let videos = try await firestoreManager.searchVideos(
+            var videos = try await firestoreManager.searchVideos(
                 query: searchText,
                 workoutType: selectedWorkoutType != .all ? selectedWorkoutType : nil
             )
+            
+            // Generate thumbnails for videos that don't have one
+            for (index, video) in videos.enumerated() {
+                if video.thumbnailURL == nil {
+                    do {
+                        // Save the video to generate thumbnail
+                        try await firestoreManager.saveVideo(videoId: video.id)
+                        // Get the updated video with thumbnail
+                        if let updatedVideo = try await firestoreManager.getVideo(id: video.id) {
+                            videos[index] = updatedVideo
+                        }
+                    } catch {
+                        print("❌ Error generating thumbnail for video \(video.id): \(error.localizedDescription)")
+                    }
+                }
+            }
+            
             if !Task.isCancelled {
                 await MainActor.run {
                     searchResults = videos

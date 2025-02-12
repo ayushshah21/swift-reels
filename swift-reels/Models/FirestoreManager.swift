@@ -791,6 +791,47 @@ class FirestoreManager: ObservableObject {
     
     // MARK: - Video Search Operations
     
+    /// Ensures thumbnails exist for a list of videos
+    private func ensureThumbnails(for videos: [VideoModel]) async throws -> [VideoModel] {
+        var updatedVideos = videos
+        
+        // Process videos in parallel for efficiency
+        await withTaskGroup(of: (Int, VideoModel?).self) { [self] group in
+            for (index, video) in videos.enumerated() {
+                if video.thumbnailURL == nil {
+                    group.addTask {
+                        do {
+                            // Generate and upload thumbnail
+                            let thumbnailURL = try await self.generateAndUploadThumbnail(for: video)
+                            
+                            // Update video document with thumbnail URL
+                            try await self.db.collection("videos").document(video.id).updateData([
+                                "thumbnailURL": thumbnailURL.absoluteString
+                            ])
+                            
+                            // Get updated video
+                            if let updatedVideo = try await self.getVideo(id: video.id) {
+                                return (index, updatedVideo)
+                            }
+                        } catch {
+                            print("❌ Error generating thumbnail for video \(video.id): \(error.localizedDescription)")
+                        }
+                        return (index, nil)
+                    }
+                }
+            }
+            
+            // Process results
+            for await (index, updatedVideo) in group {
+                if let updatedVideo = updatedVideo {
+                    updatedVideos[index] = updatedVideo
+                }
+            }
+        }
+        
+        return updatedVideos
+    }
+    
     /// Searches for videos based on title, trainer name, and workout type
     func searchVideos(query searchText: String, workoutType: WorkoutType? = nil) async throws -> [VideoModel] {
         print("🔍 Searching videos with query: '\(searchText)', workoutType: \(String(describing: workoutType))")
@@ -805,11 +846,12 @@ class FirestoreManager: ObservableObject {
         
         // Get all videos that match the workout type (or all videos if no type specified)
         let snapshot = try await firestoreQuery.getDocuments()
-        let allVideos = snapshot.documents.compactMap { VideoModel.fromFirestore($0) }
+        var allVideos = snapshot.documents.compactMap { VideoModel.fromFirestore($0) }
         
         // If search text is empty, return all videos
         guard !searchText.isEmpty else {
-            return allVideos
+            // Ensure thumbnails exist for all videos
+            return try await ensureThumbnails(for: allVideos)
         }
         
         // Split the search text into terms and convert to lowercase for case-insensitive matching
@@ -829,8 +871,11 @@ class FirestoreManager: ObservableObject {
             }
         }
         
-        print("🎯 Found \(filteredVideos.count) matching videos")
-        return filteredVideos
+        // Ensure thumbnails exist for filtered videos
+        let videosWithThumbnails = try await ensureThumbnails(for: filteredVideos)
+        
+        print("🎯 Found \(videosWithThumbnails.count) matching videos")
+        return videosWithThumbnails
     }
     
     // MARK: - Live Session Operations
