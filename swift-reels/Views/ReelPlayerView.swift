@@ -161,6 +161,7 @@ struct ReelPlayerView: View {
     @State private var showDeleteOptions = false
     @State private var subtitles: VideoSubtitles?
     @State private var currentSubtitleText: String = ""
+    @State private var showTimestamps = false
     @GestureState private var isDetectingLongPress = false
     
     private var safeAreaBottom: CGFloat {
@@ -294,6 +295,34 @@ struct ReelPlayerView: View {
                     .opacity(showHeartAnimation ? 1 : 0)
             }
             
+            // Timestamp overlay
+            if showTimestamps, let subtitles = subtitles {
+                VStack {
+                    // Add some spacing from the top
+                    Spacer().frame(height: 100)
+                    
+                    TimestampOverlayView(
+                        segments: subtitles.segments,
+                        onTimestampSelected: { timestamp in
+                            Task {
+                                if let player = localPlayer {
+                                    // Seek to timestamp
+                                    await player.seek(to: CMTime(seconds: timestamp, preferredTimescale: 600))
+                                    // Resume playback
+                                    player.play()
+                                    isPlaying = true
+                                }
+                            }
+                        },
+                        isExpanded: $showTimestamps
+                    )
+                    
+                    // Add spacing before the bottom controls
+                    Spacer().frame(height: 150)
+                }
+                .transition(.move(edge: .bottom))
+            }
+            
             // Overlay Controls
             VStack {
                 Spacer()
@@ -358,6 +387,24 @@ struct ReelPlayerView: View {
                             }
                         }
                         .foregroundColor(isBookmarked ? Theme.primary : .white)
+                        
+                        // Add Timestamps button
+                        if let subtitles = subtitles, !subtitles.segments.isEmpty {
+                            Button(action: {
+                                withAnimation(.spring()) {
+                                    showTimestamps.toggle()
+                                }
+                            }) {
+                                VStack(spacing: 4) {
+                                    Image(systemName: "list.bullet.circle")
+                                        .font(.title)
+                                    Text("Moments")
+                                        .font(.caption)
+                                        .bold()
+                                }
+                            }
+                            .foregroundColor(.white)
+                        }
                     }
                     .offset(y: isFromSearch ? 0 : (isFromSaved ? 20 : -30))
                 }
@@ -598,5 +645,82 @@ struct CustomVideoPlayer: UIViewControllerRepresentable {
     
     func updateUIViewController(_ uiViewController: AVPlayerViewController, context: Context) {
         uiViewController.player = player
+    }
+}
+
+// Add this before CustomVideoPlayer struct
+struct TimestampOverlayView: View {
+    let segments: [SubtitleSegment]
+    let onTimestampSelected: (TimeInterval) -> Void
+    @Binding var isExpanded: Bool
+    
+    var body: some View {
+        VStack {
+            // Header with expand/collapse button
+            HStack {
+                Text("Key Moments")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                Spacer()
+                Button(action: {
+                    withAnimation(.spring()) {
+                        isExpanded.toggle()
+                    }
+                }) {
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.up")
+                        .foregroundColor(.white)
+                }
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+            .background(Color.black.opacity(0.7))
+            
+            if isExpanded {
+                ScrollView {
+                    VStack(spacing: 12) {
+                        ForEach(segments) { segment in
+                            Button(action: {
+                                onTimestampSelected(segment.startTime)
+                                // Auto-collapse after selection
+                                withAnimation(.spring()) {
+                                    isExpanded = false
+                                }
+                            }) {
+                                HStack {
+                                    // Time indicator
+                                    Text(formatTime(segment.startTime))
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                        .frame(width: 50, alignment: .leading)
+                                    
+                                    // Segment text
+                                    Text(segment.text)
+                                        .foregroundColor(.white)
+                                        .lineLimit(2)
+                                        .multilineTextAlignment(.leading)
+                                    
+                                    Spacer()
+                                }
+                                .padding(.horizontal)
+                                .padding(.vertical, 8)
+                                .background(Color.black.opacity(0.5))
+                                .cornerRadius(8)
+                            }
+                        }
+                    }
+                    .padding()
+                }
+                .frame(maxHeight: 300)
+            }
+        }
+        .background(Color.black.opacity(0.5))
+        .cornerRadius(12)
+        .padding()
+    }
+    
+    private func formatTime(_ timeInterval: TimeInterval) -> String {
+        let minutes = Int(timeInterval) / 60
+        let seconds = Int(timeInterval) % 60
+        return String(format: "%d:%02d", minutes, seconds)
     }
 } 

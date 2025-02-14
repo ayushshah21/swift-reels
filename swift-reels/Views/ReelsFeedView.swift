@@ -65,7 +65,8 @@ struct ReelsFeedView: View {
             if let visibleId = visibleVideoId,
                let video = displayedVideos.first(where: { $0.id == visibleId }) {
                 Task {
-                    await playerManager.player(for: video.videoURL).play()
+                    let player = await playerManager.player(for: video.videoURL)
+                    player.play()
                 }
             }
         }) {
@@ -89,11 +90,28 @@ struct ReelsFeedView: View {
                 await loadVideos()
             }
         }
+        // --------------- KEY CHANGE BELOW ---------------
         .onAppear {
             reelQuizManager.setReelsFeedActive(true)
+            
+            // If no reel is marked visible, default to the first one
+            if visibleVideoId == nil, !displayedVideos.isEmpty {
+                visibleVideoId = displayedVideos[0].id
+            }
+            
+            // Resume playback of currently visible reel
+            if let visibleId = visibleVideoId,
+               let video = displayedVideos.first(where: { $0.id == visibleId }) {
+                Task {
+                    let player = await playerManager.player(for: video.videoURL)
+                    player.play()
+                }
+            }
         }
         .onDisappear {
             reelQuizManager.setReelsFeedActive(false)
+            // Stop playback when leaving the view
+            playerManager.stopAllPlayback()
         }
     }
     
@@ -213,8 +231,8 @@ struct ReelsFeedView: View {
                 hasMoreVideos = videos.count == videosPerPage
                 isLoadingMore = false
                 
-                // Set the first video as visible immediately
-                if !videos.isEmpty {
+                // If we just loaded videos fresh and have none marked visible, pick the first
+                if !videos.isEmpty, visibleVideoId == nil {
                     visibleVideoId = videos[0].id
                     // Preload the second video if available
                     if videos.count > 1 {
@@ -275,4 +293,4 @@ struct ReelsFeedView: View {
             }
         }
     }
-} 
+}
